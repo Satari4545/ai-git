@@ -36,11 +36,20 @@ func main() {
 			}
 	} else {
 		fmt.Println("usage: agit agent write --intent ... --message ...")
-	}
+		}
 	case "push":
 		if err := agit.Push(args); err != nil {
 			fmt.Fprintln(os.Stderr, "agit push error:", err)
 			os.Exit(1)
+		}
+	case "mcp":
+		if len(args) > 0 && args[0] == "record-context" {
+			if err := agit.AgentWrite(args[1:]); err != nil {
+				fmt.Fprintln(os.Stderr, "agit mcp record-context error:", err)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Println("usage: agit mcp record-context --provider ... --intent ... --message ...")
 		}	
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {

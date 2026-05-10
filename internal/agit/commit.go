@@ -28,6 +28,10 @@ func Commit(args []string) error {
 		intent = agentCtx.IntentSummary
 	}
 
+	if intent == "" {
+		intent = extractCommitMessage(commitArgs)
+	}
+
 	_, contextID, rawState, err := state.Capture(intent)
 	if err != nil {
 		return err
@@ -149,4 +153,31 @@ func hasCommitMessage(args []string) bool {
 	}
 
 	return false
+}
+
+func extractCommitMessage(args []string) string {
+	for i, a := range args {
+		if a == "-m" || a == "--message" {
+			if i+1 < len(args) {
+				return args[i+1]
+			}
+		}
+
+		if strings.HasPrefix(a, "-m") && len(a) > 2 {
+			return strings.TrimPrefix(a, "-m")
+		}
+
+		if strings.HasPrefix(a, "--message=") {
+			return strings.TrimPrefix(a, "--message=")
+		}
+	}
+
+	return ""
+}
+
+func errorhandler(err error) {
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "agit error:", err)
+		os.Exit(1)
+	}
 }
