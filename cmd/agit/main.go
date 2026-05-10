@@ -36,7 +36,12 @@ func main() {
 			}
 	} else {
 		fmt.Println("usage: agit agent write --intent ... --message ...")
-	}	
+	}
+	case "push":
+		if err := agit.Push(args); err != nil {
+			fmt.Fprintln(os.Stderr, "agit push error:", err)
+			os.Exit(1)
+		}	
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {
 			os.Exit(1)
