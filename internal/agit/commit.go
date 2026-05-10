@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	gitwrap "github.com/Satari4545/AGIT/internal/git"
 	"github.com/Satari4545/AGIT/internal/state"
@@ -15,6 +16,12 @@ func Commit(args []string) error {
 	if err != nil {
 		return err
 	}
+
+	if hasAgentCtx {
+	if err := validateContextFreshness(agentCtx, args); err != nil {
+		return err
+	}
+}
 
 	commitArgs := stripAgitArgs(args)
 
@@ -131,6 +138,10 @@ func stripAgitArgs(args []string) []string {
 			continue
 		}
 
+		if a == "--allow-stale-context" {
+			continue
+		}
+
 		out = append(out, a)
 	}
 
@@ -180,4 +191,40 @@ func errorhandler(err error) {
 		fmt.Fprintln(os.Stderr, "agit error:", err)
 		os.Exit(1)
 	}
+}
+
+func validateContextFreshness(ctx *AgentContext, args []string) error {
+	if hasAgitFlag(args, "--allow-stale-context") {
+		return nil
+	}
+
+	if ctx.CreatedAt == "" {
+		return fmt.Errorf("agent context has no createdAt timestamp. Refresh it with: agit mcp record-context ...")
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, ctx.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("invalid agent context createdAt timestamp: %s", ctx.CreatedAt)
+	}
+
+	maxAge := 10 * time.Minute
+	age := time.Since(createdAt)
+
+	if age > maxAge {
+		return fmt.Errorf(
+			"agent context is stale (%s old). Refresh it with 'agit mcp record-context ...' or commit with '--allow-stale-context'",
+			age.Round(time.Minute),
+		)
+	}
+
+	return nil
+}
+
+func hasAgitFlag(args []string, flag string) bool {
+	for _, a := range args {
+		if a == flag {
+			return true
+		}
+	}
+	return false
 }
