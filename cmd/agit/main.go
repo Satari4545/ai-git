@@ -34,8 +34,8 @@ func main() {
 				fmt.Fprintln(os.Stderr, "agit agent write error:", err)
 				os.Exit(1)
 			}
-	} else {
-		fmt.Println("usage: agit agent write --intent ... --message ...")
+		} else {
+			fmt.Println("usage: agit agent write --intent ... --message ...")
 		}
 	case "push":
 		if err := agit.Push(args); err != nil {
@@ -53,9 +53,14 @@ func main() {
 				fmt.Fprintln(os.Stderr, "agit mcp serve error:", err)
 				os.Exit(1)
 			}
+		} else if len(args) > 1 && args[0] == "install" {
+			if err := agit.MCPInstall(args[1]); err != nil {
+				fmt.Fprintln(os.Stderr, "agit mcp install error:", err)
+				os.Exit(1)
+			}
 		} else {
-			fmt.Println("usage: agit mcp record-context|serve")
-		}	
+			fmt.Println("usage: agit mcp record-context|serve|install <codex|claude>")
+		}
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {
 			os.Exit(1)

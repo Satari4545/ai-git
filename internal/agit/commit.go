@@ -18,10 +18,10 @@ func Commit(args []string) error {
 	}
 
 	if hasAgentCtx {
-	if err := validateContextFreshness(agentCtx, args); err != nil {
-		return err
+		if err := validateContextFreshness(agentCtx, args); err != nil {
+			return err
+		}
 	}
-}
 
 	commitArgs := stripAgitArgs(args)
 
@@ -44,8 +44,10 @@ func Commit(args []string) error {
 		return err
 	}
 
+	commitArgs, includedContextID := appendContextIDTrailer(commitArgs, contextID)
+
 	notePayload := map[string]any{
-		"contextID": contextID,
+		"contextID":  contextID,
 		"logicState": json.RawMessage(rawState),
 	}
 
@@ -76,13 +78,18 @@ func Commit(args []string) error {
 	if _, err := tmp.Write(noteBytes); err != nil {
 		return err
 	}
-	tmp.Close()
+	if err := tmp.Close(); err != nil {
+		return err
+	}
 
 	if err := gitwrap.Run("notes", "--ref=agit", "add", "-f", "-F", tmp.Name(), head); err != nil {
 		return err
 	}
 
 	fmt.Println("agit: attached context note")
+	if includedContextID {
+		fmt.Println("agit: embedded context ID in commit message")
+	}
 	fmt.Println("agit: ContextID:", contextID)
 
 	return nil
@@ -159,6 +166,32 @@ func hasCommitMessage(args []string) bool {
 		}
 
 		if strings.HasPrefix(a, "--message=") {
+			return true
+		}
+	}
+
+	return false
+}
+
+func appendContextIDTrailer(args []string, contextID string) ([]string, bool) {
+	if contextID == "" || !hasCommitMessage(args) || hasCommitMessageFile(args) {
+		return args, false
+	}
+
+	return append(args, "-m", "Agit-Context-ID: "+contextID), true
+}
+
+func hasCommitMessageFile(args []string) bool {
+	for i, a := range args {
+		if a == "-F" || a == "--file" {
+			return i+1 < len(args)
+		}
+
+		if strings.HasPrefix(a, "-F") && len(a) > 2 {
+			return true
+		}
+
+		if strings.HasPrefix(a, "--file=") {
 			return true
 		}
 	}
