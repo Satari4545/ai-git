@@ -91,6 +91,14 @@ func MCPServe() error {
 							"required": []string{"intent"},
 						},
 					},
+					{
+						"name":        "get_context",
+						"description": "Read AGIT context restored from the currently checked-out commit.",
+						"inputSchema": map[string]any{
+							"type":       "object",
+							"properties": map[string]any{},
+						},
+					},
 				},
 			})
 
@@ -116,11 +124,17 @@ func handleToolCall(req MCPRequest) {
 		return
 	}
 
-	if params.Name != "record_context" {
+	switch params.Name {
+	case "record_context":
+		handleRecordContext(req.ID, params.Arguments)
+	case "get_context":
+		handleGetContext(req.ID)
+	default:
 		writeMCPError(req.ID, -32601, "unknown tool")
-		return
 	}
+}
 
+func handleRecordContext(id any, arguments map[string]any) {
 	args := []string{}
 
 	addArg := func(flag string, value any) {
@@ -134,26 +148,55 @@ func handleToolCall(req MCPRequest) {
 		args = append(args, flag, s)
 	}
 
-	addArg("--provider", params.Arguments["provider"])
-	addArg("--intent", params.Arguments["intent"])
-	addArg("--message", params.Arguments["message"])
-	addArg("--files", params.Arguments["files"])
-	addArg("--planned", params.Arguments["planned"])
-	addArg("--actual", params.Arguments["actual"])
+	addArg("--provider", arguments["provider"])
+	addArg("--intent", arguments["intent"])
+	addArg("--message", arguments["message"])
+	addArg("--files", arguments["files"])
+	addArg("--planned", arguments["planned"])
+	addArg("--actual", arguments["actual"])
 
 	os.Setenv("AGIT_MCP_SILENT", "1")
 	defer os.Unsetenv("AGIT_MCP_SILENT")
 
 	if err := AgentWrite(args); err != nil {
-		writeMCPError(req.ID, -32000, err.Error())
+		writeMCPError(id, -32000, err.Error())
 		return
 	}
 
-	writeMCPResult(req.ID, map[string]any{
+	writeMCPResult(id, map[string]any{
 		"content": []map[string]any{
 			{
 				"type": "text",
 				"text": "agit recorded agent context successfully.",
+			},
+		},
+	})
+}
+
+func handleGetContext(id any) {
+	raw, ok, err := LoadCheckoutContextRaw()
+	if err != nil {
+		writeMCPError(id, -32000, err.Error())
+		return
+	}
+
+	if !ok {
+		writeMCPResult(id, map[string]any{
+			"content": []map[string]any{
+				{
+					"type": "text",
+					"text": "No checkout context has been restored. Run `agit checkout <branch>` on a commit with AGIT notes.",
+				},
+			},
+		})
+		return
+	}
+
+	writeMCPResult(id, map[string]any{
+		"content": []map[string]any{
+			{
+				"type": "text",
+				"text": string(raw),
 			},
 		},
 	})

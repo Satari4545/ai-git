@@ -24,6 +24,14 @@ func Output(args ...string) (string, error) {
 	return strings.TrimSpace(out.String()), err
 }
 
+func OutputQuiet(args ...string) (string, error) {
+	var out bytes.Buffer
+	cmd := exec.Command("git", args...)
+	cmd.Stdout = &out
+	err := cmd.Run()
+	return strings.TrimSpace(out.String()), err
+}
+
 func Run(args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Stdout = os.Stdout

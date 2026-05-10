@@ -52,6 +52,15 @@ agit commit
 
 If the recorded agent context includes a suggested message, `agit commit` uses it automatically. If a message is provided with `-m` or `--message`, ai-git appends an `Agit-Context-ID` trailer so the context ID becomes part of the commit object.
 
+Checkout with context:
+
+```sh
+agit checkout feature-branch
+agit mcp get-context
+```
+
+When `agit checkout` lands on a commit with an AGIT note, ai-git restores that note into `.agit/state/checkout.json`. Coding agents can read it through the MCP `get_context` tool.
+
 Inspect the context attached to `HEAD`:
 
 ```sh
@@ -78,7 +87,10 @@ Install instructions for Claude Code:
 agit mcp install claude
 ```
 
-The MCP server exposes a `record_context` tool. Coding agents should call that tool before running `agit commit`.
+The MCP server exposes:
+
+- `record_context` to save active coding-agent context before `agit commit`.
+- `get_context` to read context restored by `agit checkout`.
 
 ## Releasing
 

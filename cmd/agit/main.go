@@ -29,6 +29,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "agit commit error:", err)
 			os.Exit(1)
 		}
+	case "checkout":
+		if err := agit.Checkout(args); err != nil {
+			fmt.Fprintln(os.Stderr, "agit checkout error:", err)
+			os.Exit(1)
+		}
 	case "debug":
 		if err := agit.DebugHEAD(); err != nil {
 			fmt.Fprintln(os.Stderr, "agit debug error:", err)
@@ -54,6 +59,11 @@ func main() {
 				fmt.Fprintln(os.Stderr, "agit mcp record-context error:", err)
 				os.Exit(1)
 			}
+		} else if len(args) > 0 && args[0] == "get-context" {
+			if err := agit.PrintCheckoutContext(); err != nil {
+				fmt.Fprintln(os.Stderr, "agit mcp get-context error:", err)
+				os.Exit(1)
+			}
 		} else if len(args) > 0 && args[0] == "serve" {
 			if err := agit.MCPServe(); err != nil {
 				fmt.Fprintln(os.Stderr, "agit mcp serve error:", err)
@@ -65,7 +75,7 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
-			fmt.Println("usage: agit mcp record-context|serve|install <codex|claude>")
+			fmt.Println("usage: agit mcp record-context|get-context|serve|install <codex|claude>")
 		}
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {
@@ -80,17 +90,21 @@ func printHelp() {
 Usage:
   agit <git-command> [args...]
   agit commit [git commit args...]
+  agit checkout [git checkout args...]
   agit push [git push args...]
   agit debug
   agit mcp record-context --intent <summary> [--message <message>]
+  agit mcp get-context
   agit mcp serve
   agit mcp install <codex|claude>
 
 Commands:
   commit              Commit staged changes and attach AGIT context metadata.
+  checkout            Checkout a branch and restore AGIT context from HEAD.
   push                Push Git commits, then push AGIT Git notes.
   debug               Show the AGIT note attached to HEAD.
   mcp record-context  Record coding-agent context for the next commit.
+  mcp get-context     Print context restored by the last AGIT checkout.
   mcp serve           Run AGIT's MCP stdio server.
   mcp install         Configure AGIT MCP integration for a supported client.
   version             Print the AGIT version.
