@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agit.dev/schemas/logic-delta.v0.json",
+  "title": "agit Logic Delta",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "mcp", "agentThinking", "codeReality", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "agit.logic-delta.v0" },
+    "kind": { "const": "logic_delta" },
+    "mcp": {
+      "type": "object",
+      "required": ["systemPrompt", "resources"],
+      "properties": {
+        "systemPrompt": { "type": "string" },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["uri", "name"],
+            "properties": {
+              "uri": { "type": "string" },
+              "name": { "type": "string" },
+              "mimeType": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "inputSchema": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    "agentThinking": {
+      "type": "object",
+      "required": ["intentSummary"],
+      "properties": {
+        "intentSummary": { "type": "string" },
+        "assumptions": { "type": "array", "items": { "type": "string" } },
+        "openQuestions": { "type": "array", "items": { "type": "string" } },
+        "riskFlags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "codeReality": {
+      "type": "object",
+      "required": ["activeFiles", "gitStatus", "diffStat"],
+      "properties": {
+        "activeFiles": { "type": "array", "items": { "type": "string" } },
+        "gitStatus": { "type": "string" },
+        "diffStat": { "type": "string" }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" }
+  }
+}
