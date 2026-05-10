@@ -1,0 +1,50 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "claude",
+    "intentSummary": "Ignore generated agit runtime files",
+    "commitMessageSuggestion": "Ignore generated runtime files",
+    "activeFiles": null,
+    "plannedDelta": "",
+    "actualDelta": "",
+    "createdAt": "2026-05-10T02:56:13Z"
+  },
+  "contextID": "ctx_sha256:2e98244089e7b7f2787dfdef9fe132d063bc2063a5cbb20b32e69acaf184d793",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://.agit/state/current.json",
+          "name": ".agit/state/current.json",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://.gitignore",
+          "name": ".gitignore",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://agit.exe",
+          "name": "agit.exe",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Ignore generated agit runtime files"
+    },
+    "codeReality": {
+      "activeFiles": [
+        ".agit/state/current.json",
+        ".gitignore",
+        "agit.exe"
+      ],
+      "gitStatus": "D  .agit/state/current.json\nA  .gitignore\nD  agit.exe",
+      "diffStat": ".agit/state/current.json |  10 ----------\n .gitignore               |   2 ++\n agit.exe                 | Bin 3807232 -\u003e 0 bytes\n 3 files changed, 2 insertions(+), 10 deletions(-)"
+    },
+    "createdAt": "2026-05-10T02:56:14Z"
+  }
+}
