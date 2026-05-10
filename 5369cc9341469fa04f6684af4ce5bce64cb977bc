@@ -1,0 +1,75 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Prepare ai-git for public CLI distribution",
+    "commitMessageSuggestion": "Prepare ai-git npm and release packaging",
+    "activeFiles": [
+      "go.mod",
+      "cmd/agit/main.go",
+      "internal/agit/commit.go",
+      "internal/agit/push.go",
+      "README.md",
+      "package.json",
+      "scripts/install.js",
+      "bin/agit.js",
+      ".github/workflows/release.yml",
+      "packaging/homebrew/agit.rb.template",
+      "LICENSE",
+      ".gitignore"
+    ],
+    "plannedDelta": "Rename public project metadata to ai-git while keeping the installed command as agit, and prepare npm, release, and Homebrew packaging.",
+    "actualDelta": "Updated Go module/import paths, npm metadata, installer URLs, README links, Homebrew template URLs, Git remote, CLI help/version support, release workflow, npm wrapper, license, and ignore rules.",
+    "createdAt": "2026-05-10T04:56:28Z"
+  },
+  "contextID": "ctx_sha256:0305dc2b6e6a047dd56dab331c549b8cce2c5d4187e96d9299497813098784a9",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://LICENSE",
+          "name": "LICENSE",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://package.json",
+          "name": "package.json",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://packaging/homebrew/agit.rb.template",
+          "name": "packaging/homebrew/agit.rb.template",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://scripts/install.js",
+          "name": "scripts/install.js",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Prepare ai-git for public CLI distribution"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "LICENSE",
+        "README.md",
+        "package.json",
+        "packaging/homebrew/agit.rb.template",
+        "scripts/install.js"
+      ],
+      "gitStatus": "M  LICENSE\nM  README.md\nM  package.json\nM  packaging/homebrew/agit.rb.template\nM  scripts/install.js",
+      "diffStat": "LICENSE                             | 23 ++++++++--------------\n README.md                           | 38 +++++++++++++++++++------------------\n package.json                        | 14 +++-----------\n packaging/homebrew/agit.rb.template | 12 ++++++------\n scripts/install.js                  |  4 ++--\n 5 files changed, 39 insertions(+), 52 deletions(-)"
+    },
+    "createdAt": "2026-05-10T05:04:55Z"
+  }
+}
