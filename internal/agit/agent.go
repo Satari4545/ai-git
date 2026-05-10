@@ -103,8 +103,10 @@ func AgentWrite(args []string) error {
 		return err
 	}
 
-	fmt.Println("Agent context written to", path)
-	fmt.Println("Suggested commit message:", ctx.CommitMessageSuggestion)
+	if os.Getenv("AGIT_MCP_SILENT") != "1" {
+		fmt.Println("Agent context written to", path)
+		fmt.Println("Suggested commit message:", ctx.CommitMessageSuggestion)
+	}
 
 	return nil
 }

@@ -48,8 +48,13 @@ func main() {
 				fmt.Fprintln(os.Stderr, "agit mcp record-context error:", err)
 				os.Exit(1)
 			}
+		} else if len(args) > 0 && args[0] == "serve" {
+			if err := agit.MCPServe(); err != nil {
+				fmt.Fprintln(os.Stderr, "agit mcp serve error:", err)
+				os.Exit(1)
+			}
 		} else {
-			fmt.Println("usage: agit mcp record-context --provider ... --intent ... --message ...")
+			fmt.Println("usage: agit mcp record-context|serve")
 		}	
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {
