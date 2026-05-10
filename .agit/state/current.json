@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "agit.agent-context.v0",
+  "provider": "claude",
+  "intentSummary": "Connect commit workflow to agent context",
+  "commitMessageSuggestion": "Use agent context during commit",
+  "activeFiles": null,
+  "plannedDelta": "",
+  "actualDelta": "",
+  "createdAt": "2026-05-10T02:54:59Z"
+}
