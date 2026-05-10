@@ -1,0 +1,44 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "claude",
+    "intentSummary": "Ignore generated agit runtime files",
+    "commitMessageSuggestion": "Ignore generated runtime files",
+    "activeFiles": null,
+    "plannedDelta": "",
+    "actualDelta": "",
+    "createdAt": "2026-05-10T02:56:13Z"
+  },
+  "contextID": "ctx_sha256:efd304d2f09082970c481192f6401e2ed3fd11648be495e763ad7a1dc868fbaa",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/push.go",
+          "name": "internal/agit/push.go",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Ignore generated agit runtime files"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "cmd/agit/main.go",
+        "internal/agit/push.go"
+      ],
+      "gitStatus": "M  cmd/agit/main.go\nA  internal/agit/push.go",
+      "diffStat": "cmd/agit/main.go      |  7 ++++++-\n internal/agit/push.go | 27 +++++++++++++++++++++++++++\n 2 files changed, 33 insertions(+), 1 deletion(-)"
+    },
+    "createdAt": "2026-05-10T03:05:14Z"
+  }
+}
