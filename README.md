@@ -89,13 +89,20 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The release workflow builds public binaries for:
+Or build release binaries locally:
 
-- Linux amd64
-- Linux arm64
-- macOS Intel
-- macOS Apple Silicon
-- Windows amd64
+```powershell
+.\scripts\build-release.ps1 -Version v0.1.0
+```
+
+The build creates these public binary assets in `dist/`:
+
+- `agit-linux-amd64`
+- `agit-linux-arm64`
+- `agit-darwin-amd64`
+- `agit-darwin-arm64`
+- `agit-windows-amd64.exe`
+- matching `.sha256` checksum files
 
 Upload those binaries and their `.sha256` files to a matching public release in `Satari4545/ai-git-releases`. For version `0.1.0`, create public release tag `v0.1.0` with these assets:
 
@@ -104,6 +111,8 @@ Upload those binaries and their `.sha256` files to a matching public release in 
 - `agit-darwin-amd64`
 - `agit-darwin-arm64`
 - `agit-windows-amd64.exe`
+
+Do not push source code to `Satari4545/ai-git-releases`; that repository only needs release assets and optional public-facing release notes.
 
 After public binary assets exist, publish the npm package:
 
