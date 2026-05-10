@@ -1,0 +1,50 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Test real MCP server",
+    "commitMessageSuggestion": "Test MCP server",
+    "activeFiles": null,
+    "plannedDelta": "",
+    "actualDelta": "",
+    "createdAt": "2026-05-10T03:54:14Z"
+  },
+  "contextID": "ctx_sha256:7825fc76652769b189673271e153de25861b56773c6e6886c2f730dae28d3cb1",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/agent.go",
+          "name": "internal/agit/agent.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/mcp.go",
+          "name": "internal/agit/mcp.go",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Test real MCP server"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "cmd/agit/main.go",
+        "internal/agit/agent.go",
+        "internal/agit/mcp.go"
+      ],
+      "gitStatus": "M  cmd/agit/main.go\nM  internal/agit/agent.go\nA  internal/agit/mcp.go",
+      "diffStat": "cmd/agit/main.go       |   7 +-\n internal/agit/agent.go |   6 +-\n internal/agit/mcp.go   | 188 +++++++++++++++++++++++++++++++++++++++++++++++++\n 3 files changed, 198 insertions(+), 3 deletions(-)"
+    },
+    "createdAt": "2026-05-10T03:57:17Z"
+  }
+}
