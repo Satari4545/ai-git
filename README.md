@@ -15,7 +15,7 @@ ai-git is intended to be installed as a public CLI through npm, Homebrew, or dir
 Install with npm:
 
 ```sh
-npm install -g ai-git
+npm install -g agentic-git
 ```
 
 Install from direct binary download:

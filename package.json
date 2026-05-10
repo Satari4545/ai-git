@@ -1,5 +1,5 @@
 {
-  "name": "ai-git",
+  "name": "agentic-git",
   "version": "0.1.0",
   "description": "Git with AI coding-agent context attached to commits.",
   "bin": {

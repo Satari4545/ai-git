@@ -3,3 +3,4 @@ agit.exe
 dist/
 vendor/
 node_modules/
+*.tgz
