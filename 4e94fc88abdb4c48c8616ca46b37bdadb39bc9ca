@@ -1,0 +1,117 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Prepare ai-git for public CLI distribution",
+    "commitMessageSuggestion": "Prepare ai-git npm and release packaging",
+    "activeFiles": [
+      "go.mod",
+      "cmd/agit/main.go",
+      "internal/agit/commit.go",
+      "internal/agit/push.go",
+      "README.md",
+      "package.json",
+      "scripts/install.js",
+      "bin/agit.js",
+      ".github/workflows/release.yml",
+      "packaging/homebrew/agit.rb.template",
+      "LICENSE",
+      ".gitignore"
+    ],
+    "plannedDelta": "Rename public project metadata to ai-git while keeping the installed command as agit, and prepare npm, release, and Homebrew packaging.",
+    "actualDelta": "Updated Go module/import paths, npm metadata, installer URLs, README links, Homebrew template URLs, Git remote, CLI help/version support, release workflow, npm wrapper, license, and ignore rules.",
+    "createdAt": "2026-05-10T04:56:28Z"
+  },
+  "contextID": "ctx_sha256:690a5f76f70404cd9fdc7692394d2f7a57d45a045f77e9ca2453b3bfc5966145",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://.github/workflows/release.yml",
+          "name": ".github/workflows/release.yml",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://.gitignore",
+          "name": ".gitignore",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://LICENSE",
+          "name": "LICENSE",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://bin/agit.js",
+          "name": "bin/agit.js",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://go.mod",
+          "name": "go.mod",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/commit.go",
+          "name": "internal/agit/commit.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/push.go",
+          "name": "internal/agit/push.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://package.json",
+          "name": "package.json",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://packaging/homebrew/agit.rb.template",
+          "name": "packaging/homebrew/agit.rb.template",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://scripts/install.js",
+          "name": "scripts/install.js",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Prepare ai-git for public CLI distribution"
+    },
+    "codeReality": {
+      "activeFiles": [
+        ".github/workflows/release.yml",
+        ".gitignore",
+        "LICENSE",
+        "README.md",
+        "bin/agit.js",
+        "cmd/agit/main.go",
+        "go.mod",
+        "internal/agit/commit.go",
+        "internal/agit/push.go",
+        "package.json",
+        "packaging/homebrew/agit.rb.template",
+        "scripts/install.js"
+      ],
+      "gitStatus": "A  .github/workflows/release.yml\nM  .gitignore\nA  LICENSE\nM  README.md\nA  bin/agit.js\nM  cmd/agit/main.go\nM  go.mod\nM  internal/agit/commit.go\nM  internal/agit/push.go\nA  package.json\nA  packaging/homebrew/agit.rb.template\nA  scripts/install.js",
+      "diffStat": ".github/workflows/release.yml       | 79 ++++++++++++++++++++++++++++++++++++\n .gitignore                          |  4 +-\n LICENSE                             | 21 ++++++++++\n README.md                           | 81 +++++++++++++++++++++++++++++++++----\n bin/agit.js                         | 24 +++++++++++\n cmd/agit/main.go                    | 38 +++++++++++++++--\n go.mod                              |  2 +-\n internal/agit/commit.go             |  4 +-\n internal/agit/push.go               |  4 +-\n package.json                        | 35 ++++++++++++++++\n packaging/homebrew/agit.rb.template | 34 ++++++++++++++++\n scripts/install.js                  | 68 +++++++++++++++++++++++++++++++\n 12 files changed, 376 insertions(+), 18 deletions(-)"
+    },
+    "createdAt": "2026-05-10T04:56:47Z"
+  }
+}
