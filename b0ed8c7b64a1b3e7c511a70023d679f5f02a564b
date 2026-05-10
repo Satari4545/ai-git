@@ -1,0 +1,56 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "claude",
+    "intentSummary": "Connect commit workflow to agent context",
+    "commitMessageSuggestion": "Use agent context during commit",
+    "activeFiles": null,
+    "plannedDelta": "",
+    "actualDelta": "",
+    "createdAt": "2026-05-10T02:54:59Z"
+  },
+  "contextID": "ctx_sha256:e1e876a41576d595e2572c7f1210685e765681291f25e8bd7da02c598f73667c",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://.agit/state/current.json",
+          "name": ".agit/state/current.json",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://agit.exe",
+          "name": "agit.exe",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://go.mod",
+          "name": "go.mod",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/commit.go",
+          "name": "internal/agit/commit.go",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Connect commit workflow to agent context"
+    },
+    "codeReality": {
+      "activeFiles": [
+        ".agit/state/current.json",
+        "agit.exe",
+        "go.mod",
+        "internal/agit/commit.go"
+      ],
+      "gitStatus": "A  .agit/state/current.json\nM  agit.exe\nM  go.mod\nM  internal/agit/commit.go",
+      "diffStat": ".agit/state/current.json |  10 +++++++\n agit.exe                 | Bin 3592704 -\u003e 3807232 bytes\n go.mod                   |   2 +-\n internal/agit/commit.go  |  68 +++++++++++++++++++++++++++++++++++++++++------\n 4 files changed, 71 insertions(+), 9 deletions(-)"
+    },
+    "createdAt": "2026-05-10T02:55:00Z"
+  }
+}
