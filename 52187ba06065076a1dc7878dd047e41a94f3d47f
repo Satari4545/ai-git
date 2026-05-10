@@ -1,0 +1,54 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Rename npm package to agentic-git",
+    "commitMessageSuggestion": "Rename npm package to agentic-git",
+    "activeFiles": [
+      ".gitignore",
+      "README.md",
+      "package.json"
+    ],
+    "plannedDelta": "Use a more unique npm package name while keeping the installed command as agit.",
+    "actualDelta": "Changed npm package name and docs to agentic-git,  and ignored local npm tarballs.",
+    "createdAt": "2026-05-10T05:26:50Z"
+  },
+  "contextID": "ctx_sha256:039e26fbba1f66377bea9a1e7a315e230860b70737d860a3003925b93f8c1973",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://.gitignore",
+          "name": ".gitignore",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://package.json",
+          "name": "package.json",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Rename npm package to agentic-git"
+    },
+    "codeReality": {
+      "activeFiles": [
+        ".gitignore",
+        "README.md",
+        "package.json"
+      ],
+      "gitStatus": "M  .gitignore\nM  README.md\nM  package.json",
+      "diffStat": ".gitignore   | 1 +\n README.md    | 2 +-\n package.json | 2 +-\n 3 files changed, 3 insertions(+), 2 deletions(-)"
+    },
+    "createdAt": "2026-05-10T05:27:01Z"
+  }
+}
