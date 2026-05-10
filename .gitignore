@@ -1,2 +1,4 @@
 agit.exe
 .agit/
+vendor/
+node_modules/

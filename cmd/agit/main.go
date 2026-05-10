@@ -4,20 +4,26 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Satari4545/AGIT/internal/agit"
-	gitwrap "github.com/Satari4545/AGIT/internal/git"
+	"github.com/Satari4545/ai-git/internal/agit"
+	gitwrap "github.com/Satari4545/ai-git/internal/git"
 )
+
+var version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {
-		_ = gitwrap.RunPassthrough(os.Args[1:]...)
-		return
+		printHelp()
+		os.Exit(0)
 	}
 
 	cmd := os.Args[1]
 	args := os.Args[2:]
 
 	switch cmd {
+	case "-h", "--help", "help":
+		printHelp()
+	case "-v", "--version", "version":
+		fmt.Println("agit", version)
 	case "commit":
 		if err := agit.Commit(args); err != nil {
 			fmt.Fprintln(os.Stderr, "agit commit error:", err)
@@ -66,4 +72,28 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+func printHelp() {
+	fmt.Println(`agit - Git with AI coding-agent context
+
+Usage:
+  agit <git-command> [args...]
+  agit commit [git commit args...]
+  agit push [git push args...]
+  agit debug
+  agit mcp record-context --intent <summary> [--message <message>]
+  agit mcp serve
+  agit mcp install <codex|claude>
+
+Commands:
+  commit              Commit staged changes and attach AGIT context metadata.
+  push                Push Git commits, then push AGIT Git notes.
+  debug               Show the AGIT note attached to HEAD.
+  mcp record-context  Record coding-agent context for the next commit.
+  mcp serve           Run AGIT's MCP stdio server.
+  mcp install         Configure AGIT MCP integration for a supported client.
+  version             Print the AGIT version.
+
+Any unknown command is passed through to git.`)
 }

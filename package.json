@@ -1,0 +1,35 @@
+{
+  "name": "ai-git",
+  "version": "0.1.0",
+  "description": "Git with AI coding-agent context attached to commits.",
+  "bin": {
+    "agit": "bin/agit.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "test": "go test ./..."
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Satari4545/ai-git.git"
+  },
+  "keywords": [
+    "git",
+    "ai",
+    "cli",
+    "mcp",
+    "agent"
+  ],
+  "author": "Satari4545",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Satari4545/ai-git/issues"
+  },
+  "homepage": "https://github.com/Satari4545/ai-git#readme"
+}

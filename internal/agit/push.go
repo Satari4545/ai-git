@@ -3,7 +3,7 @@ package agit
 import (
 	"fmt"
 
-	gitwrap "github.com/Satari4545/AGIT/internal/git"
+	gitwrap "github.com/Satari4545/ai-git/internal/git"
 )
 
 func Push(args []string) error {
