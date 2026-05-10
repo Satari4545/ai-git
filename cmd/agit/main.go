@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yourname/agit/internal/agit"
-	gitwrap "github.com/yourname/agit/internal/git"
+	"github.com/Satari4545/AGIT/internal/agit"
+	gitwrap "github.com/Satari4545/AGIT/internal/git"
 )
 
 func main() {

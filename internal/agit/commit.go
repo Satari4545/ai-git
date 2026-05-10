@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	gitwrap "github.com/yourname/agit/internal/git"
-	"github.com/yourname/agit/internal/state"
+	gitwrap "github.com/Satari4545/AGIT/internal/git"
+	"github.com/Satari4545/AGIT/internal/state"
 )
 
 func Commit(args []string) error {
