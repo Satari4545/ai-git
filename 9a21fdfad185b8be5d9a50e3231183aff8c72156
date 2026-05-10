@@ -1,0 +1,75 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Restore context on branch checkout",
+    "commitMessageSuggestion": "Restore AGIT context on checkout",
+    "activeFiles": [
+      "cmd/agit/main.go",
+      "internal/agit/  checkout.go",
+      "internal/agit/mcp.go",
+      "internal/git/git.go",
+      "README.md",
+      "package.json"
+    ],
+    "plannedDelta": "Restore saved commit context when users switch branches and expose it to coding agents.",
+    "actualDelta": "Added agit checkout restore, checkout context storage, MCP get_context, CLI get-context, docs, and package version bump.",
+    "createdAt": "2026-05-10T22:23:58Z"
+  },
+  "contextID": "ctx_sha256:2262f338a936a5e8dfe8783b7ad3ed58dedf595ee1d763886ad9fceccb0c70d5",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/checkout.go",
+          "name": "internal/agit/checkout.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/mcp.go",
+          "name": "internal/agit/mcp.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/git/git.go",
+          "name": "internal/git/git.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://package.json",
+          "name": "package.json",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Restore context on branch checkout"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "README.md",
+        "cmd/agit/main.go",
+        "internal/agit/checkout.go",
+        "internal/agit/mcp.go",
+        "internal/git/git.go",
+        "package.json"
+      ],
+      "gitStatus": "M  README.md\nM  cmd/agit/main.go\nA  internal/agit/checkout.go\nM  internal/agit/mcp.go\nM  internal/git/git.go\nM  package.json",
+      "diffStat": "README.md                 |  14 +++++-\n cmd/agit/main.go          |  16 ++++++-\n internal/agit/checkout.go | 110 ++++++++++++++++++++++++++++++++++++++++++++++\n internal/agit/mcp.go      |  65 ++++++++++++++++++++++-----\n internal/git/git.go       |  10 ++++-\n package.json              |   2 +-\n 6 files changed, 202 insertions(+), 15 deletions(-)"
+    },
+    "createdAt": "2026-05-10T22:24:09Z"
+  }
+}
