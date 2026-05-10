@@ -1,25 +1,25 @@
 class Agit < Formula
   desc "Git with AI coding-agent context attached to commits"
-  homepage "https://github.com/Satari4545/ai-git"
+  homepage "https://ai-git.dev"
   version "VERSION"
-  license "MIT"
+  license :cannot_represent
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/Satari4545/ai-git/releases/download/vVERSION/agit-darwin-arm64"
+      url "https://github.com/Satari4545/ai-git-releases/releases/download/vVERSION/agit-darwin-arm64"
       sha256 "DARWIN_ARM64_SHA256"
     else
-      url "https://github.com/Satari4545/ai-git/releases/download/vVERSION/agit-darwin-amd64"
+      url "https://github.com/Satari4545/ai-git-releases/releases/download/vVERSION/agit-darwin-amd64"
       sha256 "DARWIN_AMD64_SHA256"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/Satari4545/ai-git/releases/download/vVERSION/agit-linux-arm64"
+      url "https://github.com/Satari4545/ai-git-releases/releases/download/vVERSION/agit-linux-arm64"
       sha256 "LINUX_ARM64_SHA256"
     else
-      url "https://github.com/Satari4545/ai-git/releases/download/vVERSION/agit-linux-amd64"
+      url "https://github.com/Satari4545/ai-git-releases/releases/download/vVERSION/agit-linux-amd64"
       sha256 "LINUX_AMD64_SHA256"
     end
   end

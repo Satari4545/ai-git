@@ -5,8 +5,8 @@ const path = require("node:path");
 
 const packageJson = require("../package.json");
 
-const repo = "Satari4545/ai-git";
 const version = `v${packageJson.version}`;
+const baseUrl = process.env.AIGIT_DOWNLOAD_BASE_URL || "https://github.com/Satari4545/ai-git-releases/releases/download";
 const platformMap = {
   linux: "linux",
   darwin: "darwin",
@@ -25,7 +25,7 @@ if (!platform || !arch) {
 }
 
 const assetName = `agit-${platform}-${arch}${platform === "windows" ? ".exe" : ""}`;
-const url = `https://github.com/${repo}/releases/download/${version}/${assetName}`;
+const url = `${baseUrl}/${version}/${assetName}`;
 const vendorDir = path.join(__dirname, "..", "vendor");
 const outputPath = path.join(vendorDir, platform === "windows" ? "agit.exe" : "agit");
 

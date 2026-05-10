@@ -1,6 +1,6 @@
 # ai-git
 
-ai-git is a small Git wrapper that records AI coding-agent context alongside commits.
+ai-git is a closed-source CLI that records AI coding-agent context alongside commits.
 
 The intended flow is:
 
@@ -10,7 +10,7 @@ The intended flow is:
 
 ## Install
 
-ai-git is intended to be installed as a public CLI through npm, Homebrew, or direct GitHub Release binaries.
+ai-git is intended to be installed as a public CLI through npm, Homebrew, or direct binary downloads. The source repository can stay private while public release artifacts are hosted separately.
 
 Install with npm:
 
@@ -18,17 +18,11 @@ Install with npm:
 npm install -g ai-git
 ```
 
-Install from source:
-
-```sh
-go install github.com/Satari4545/ai-git/cmd/agit@latest
-```
-
-Install from a GitHub Release:
+Install from direct binary download:
 
 ```sh
 # Linux amd64 example
-curl -L https://github.com/Satari4545/ai-git/releases/latest/download/agit-linux-amd64 -o agit
+curl -L https://github.com/Satari4545/ai-git-releases/releases/download/v0.1.0/agit-linux-amd64 -o agit
 chmod +x agit
 sudo mv agit /usr/local/bin/agit
 ```
@@ -88,14 +82,14 @@ The MCP server exposes a `record_context` tool. Coding agents should call that t
 
 ## Releasing
 
-Create a tagged release:
+Create a tagged release from the private source repository:
 
 ```sh
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The GitHub Actions release workflow builds binaries for:
+The release workflow builds public binaries for:
 
 - Linux amd64
 - Linux arm64
@@ -103,18 +97,26 @@ The GitHub Actions release workflow builds binaries for:
 - macOS Apple Silicon
 - Windows amd64
 
-After the GitHub Release exists, publish the npm package:
+Upload those binaries and their `.sha256` files to a matching public release in `Satari4545/ai-git-releases`. For version `0.1.0`, create public release tag `v0.1.0` with these assets:
+
+- `agit-linux-amd64`
+- `agit-linux-arm64`
+- `agit-darwin-amd64`
+- `agit-darwin-arm64`
+- `agit-windows-amd64.exe`
+
+After public binary assets exist, publish the npm package:
 
 ```sh
 npm publish
 ```
 
-The npm package downloads the matching binary from the GitHub Release during `postinstall`.
+The npm package downloads the matching binary during `postinstall`. By default, it expects public binaries in `Satari4545/ai-git-releases` at `https://github.com/Satari4545/ai-git-releases/releases/download/<version>/<asset>`. Set `AIGIT_DOWNLOAD_BASE_URL` when testing a different binary host.
 
 To publish a Homebrew tap, copy `packaging/homebrew/agit.rb.template` into a tap repository as `Formula/agit.rb`, replace `VERSION` and the SHA placeholders with the release values, then install with:
 
 ```sh
-brew tap Satari4545/agit
+brew tap Satari4545/ai-git
 brew install agit
 ```
 
@@ -122,8 +124,8 @@ brew install agit
 
 Git commit hashes are immutable. ai-git stores the full context as a Git note attached to the commit hash. When a commit message is available, ai-git also embeds the context ID in the commit message so the commit hash commits to that context ID.
 
-## License
+## Source Availability
 
-ai-git is licensed under the MIT License.
+ai-git's source code is private. The npm package installs the CLI binary but does not include the source code.
 
-Copyright (c) 2026 Satari4545.
+Copyright (c) 2026 Satari4545. All rights reserved.

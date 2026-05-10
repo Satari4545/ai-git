@@ -12,13 +12,8 @@
   "files": [
     "bin",
     "scripts",
-    "README.md",
-    "LICENSE"
+    "README.md"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Satari4545/ai-git.git"
-  },
   "keywords": [
     "git",
     "ai",
@@ -27,9 +22,6 @@
     "agent"
   ],
   "author": "Satari4545",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/Satari4545/ai-git/issues"
-  },
-  "homepage": "https://github.com/Satari4545/ai-git#readme"
+  "license": "UNLICENSED",
+  "private": false
 }
