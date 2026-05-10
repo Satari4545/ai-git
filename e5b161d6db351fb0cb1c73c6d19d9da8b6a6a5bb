@@ -1,0 +1,38 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Add context freshness check",
+    "commitMessageSuggestion": "Add context freshness validation",
+    "activeFiles": null,
+    "plannedDelta": "",
+    "actualDelta": "",
+    "createdAt": "2026-05-10T03:35:29Z"
+  },
+  "contextID": "ctx_sha256:dc2c656272ad0f3bd8fd90a0511ba91b2bd2e0265f8a28da3180530ac563c6fa",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://internal/agit/commit.go",
+          "name": "internal/agit/commit.go",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Add context freshness check"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "internal/agit/commit.go"
+      ],
+      "gitStatus": "M  internal/agit/commit.go",
+      "diffStat": "internal/agit/commit.go | 47 +++++++++++++++++++++++++++++++++++++++++++++++\n 1 file changed, 47 insertions(+)"
+    },
+    "createdAt": "2026-05-10T03:35:29Z"
+  }
+}
