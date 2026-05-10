@@ -1,0 +1,44 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Add MCP bridge",
+    "commitMessageSuggestion": "Add MCP bridge",
+    "activeFiles": null,
+    "plannedDelta": "",
+    "actualDelta": "",
+    "createdAt": "2026-05-10T03:20:51Z"
+  },
+  "contextID": "ctx_sha256:e8d3594853d3f5ed7b59a8788bdbfcfd8fb6873bc2df2012405753fbaffa54b7",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/commit.go",
+          "name": "internal/agit/commit.go",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Add MCP bridge"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "cmd/agit/main.go",
+        "internal/agit/commit.go"
+      ],
+      "gitStatus": "M  cmd/agit/main.go\nM  internal/agit/commit.go",
+      "diffStat": "cmd/agit/main.go        | 11 ++++++++++-\n internal/agit/commit.go | 33 ++++++++++++++++++++++++++++++++-\n 2 files changed, 42 insertions(+), 2 deletions(-)"
+    },
+    "createdAt": "2026-05-10T03:21:55Z"
+  }
+}
