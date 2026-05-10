@@ -1,0 +1,61 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Build agit commit context capture",
+    "commitMessageSuggestion": "Embed AGIT context ID in commits",
+    "activeFiles": [
+      "cmd/agit/main.go",
+      "internal/agit/commit.go",
+      "internal/agit/mcp_installs.go",
+      "README.md"
+    ],
+    "plannedDelta": "Record coding-agent context before agit commit, then bind the resulting context ID to the commit.",
+    "actualDelta": "Added commit-message context trailer support, documented the MCP commit flow, and formatted the CLI entrypoint.",
+    "createdAt": "2026-05-10T04:34:29Z"
+  },
+  "contextID": "ctx_sha256:67618490b968122427440e1ac8cec7253bd1f063aab3c6258f87774859d0ab4e",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/commit.go",
+          "name": "internal/agit/commit.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/mcp_installs.go",
+          "name": "internal/agit/mcp_installs.go",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Build agit commit context capture"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "README.md",
+        "cmd/agit/main.go",
+        "internal/agit/commit.go",
+        "internal/agit/mcp_installs.go"
+      ],
+      "gitStatus": "A  README.md\nM  cmd/agit/main.go\nM  internal/agit/commit.go\nA  internal/agit/mcp_installs.go",
+      "diffStat": "README.md                     | 64 +++++++++++++++++++++++++++++++++++++\n cmd/agit/main.go              | 15 ++++++---\n internal/agit/commit.go       | 43 ++++++++++++++++++++++---\n internal/agit/mcp_installs.go | 74 +++++++++++++++++++++++++++++++++++++++++++\n 4 files changed, 186 insertions(+), 10 deletions(-)"
+    },
+    "createdAt": "2026-05-10T04:34:43Z"
+  }
+}
