@@ -1,0 +1,64 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "intentSummary": "Prepare closed-source ai-git binary distribution",
+    "commitMessageSuggestion": "Prepare private-source binary release flow",
+    "activeFiles": [
+      ".gitignore",
+      "README.md",
+      "package.json",
+      "scripts/install.js",
+      "scripts/build-release.ps1",
+      "packaging/homebrew/agit.rb.template",
+      "LICENSE"
+    ],
+    "plannedDelta": "Keep source private while publishing installable binaries through a public releases repo.",
+    "actualDelta": "Added proprietary license, public binary download configuration, local release build script, npm package limits, and release upload docs.",
+    "createdAt": "2026-05-10T05:10:06Z"
+  },
+  "contextID": "ctx_sha256:3c7a82e98159380008cc621ca4729367924b4686f30da66214c53f399ac4e736",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://.gitignore",
+          "name": ".gitignore",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://package.json",
+          "name": "package.json",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://scripts/build-release.ps1",
+          "name": "scripts/build-release.ps1",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Prepare closed-source ai-git binary distribution"
+    },
+    "codeReality": {
+      "activeFiles": [
+        ".gitignore",
+        "README.md",
+        "package.json",
+        "scripts/build-release.ps1"
+      ],
+      "gitStatus": "M  .gitignore\nM  README.md\nM  package.json\nA  scripts/build-release.ps1",
+      "diffStat": ".gitignore                |  1 +\n README.md                 | 21 +++++++++++++++------\n package.json              |  2 +-\n scripts/build-release.ps1 | 37 +++++++++++++++++++++++++++++++++++++\n 4 files changed, 54 insertions(+), 7 deletions(-)"
+    },
+    "createdAt": "2026-05-10T05:10:15Z"
+  }
+}
