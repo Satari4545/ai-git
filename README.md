@@ -8,6 +8,18 @@ The intended flow is:
 2. `agit commit` captures the staged Git state.
 3. ai-git commits normally, embeds an `Agit-Context-ID` trailer when a commit message is available, and attaches the full context payload as a Git note under `refs/notes/agit`.
 
+## Why This Exists
+
+Commit messages and PR descriptions are useful for humans, but they usually lose the working context an AI coding agent had while making the change. ai-git adds a machine-readable context layer for agents and tools: intent, active files, planned delta, actual delta, decisions, risks, next steps, and branch context.
+
+This direction is supported by recent work on Git-like context management for agents:
+
+- [Git Context Controller: Manage the Context of LLM-based Agents like Git](https://arxiv.org/abs/2508.00031) explores Git-inspired context management for long-running agents.
+- [Emergent Mind summary of Git Context Controller](https://www.emergentmind.com/topics/git-context-controller-gcc) summarizes the benchmark gains and agent-memory design.
+- [faugustdev/git-context-controller](https://github.com/faugustdev/git-context-controller) is an open-source GCC implementation and useful reference point.
+
+ai-git is not a GCC clone. GCC is agent memory infrastructure; ai-git is a productized Git workflow layer that binds agent context to real commits, checkouts, pushes, and eventually cloud/team timelines.
+
 ## Install
 
 ai-git is intended to be installed as a public CLI through npm, Homebrew, or direct binary downloads. The source repository can stay private while public release artifacts are hosted separately.
@@ -121,6 +133,23 @@ Provider JSON shape:
 ```
 
 If no provider is configured, `agit commit` falls back to context previously recorded through MCP. To commit without context, use `--allow-missing-context`.
+
+During commit, ai-git prints progress so provider calls do not look frozen:
+
+```text
+agit: preparing commit context
+agit: asking agent provider for context (timeout 60s)
+agit: refreshed agent context from provider
+agit: capturing staged Git state
+agit: creating Git commit
+agit: attaching context note
+```
+
+Suppress ai-git progress messages with:
+
+```sh
+agit commit --quiet
+```
 
 Checkout with context:
 
