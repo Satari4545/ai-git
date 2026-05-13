@@ -8,17 +8,48 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	gitwrap "github.com/Satari4545/ai-git/internal/git"
 )
 
 type AgentContext struct {
 	SchemaVersion           string   `json:"schemaVersion"`
 	Provider                string   `json:"provider"`
+	TaskID                  string   `json:"taskID,omitempty"`
+	Repo                    string   `json:"repo,omitempty"`
+	Branch                  string   `json:"branch,omitempty"`
+	BaseCommit              string   `json:"baseCommit,omitempty"`
 	IntentSummary           string   `json:"intentSummary"`
 	CommitMessageSuggestion string   `json:"commitMessageSuggestion"`
 	ActiveFiles             []string `json:"activeFiles"`
 	PlannedDelta            string   `json:"plannedDelta"`
 	ActualDelta             string   `json:"actualDelta"`
+	Decisions               []string `json:"decisions,omitempty"`
+	Risks                   []string `json:"risks,omitempty"`
+	NextSteps               []string `json:"nextSteps,omitempty"`
 	CreatedAt               string   `json:"createdAt"`
+}
+
+type agentContextInput struct {
+	SchemaVersion           string   `json:"schemaVersion"`
+	Provider                string   `json:"provider"`
+	TaskID                  string   `json:"taskID"`
+	Repo                    string   `json:"repo"`
+	Branch                  string   `json:"branch"`
+	BaseCommit              string   `json:"baseCommit"`
+	Intent                  string   `json:"intent"`
+	IntentSummary           string   `json:"intentSummary"`
+	Message                 string   `json:"message"`
+	CommitMessageSuggestion string   `json:"commitMessageSuggestion"`
+	Files                   []string `json:"files"`
+	ActiveFiles             []string `json:"activeFiles"`
+	Planned                 string   `json:"planned"`
+	PlannedDelta            string   `json:"plannedDelta"`
+	Actual                  string   `json:"actual"`
+	ActualDelta             string   `json:"actualDelta"`
+	Decisions               []string `json:"decisions"`
+	Risks                   []string `json:"risks"`
+	NextSteps               []string `json:"nextSteps"`
 }
 
 func AgentWrite(args []string) error {
@@ -35,6 +66,34 @@ func AgentWrite(args []string) error {
 				return errors.New("--provider requires a value")
 			}
 			ctx.Provider = args[i+1]
+			i++
+
+		case "--task-id":
+			if i+1 >= len(args) {
+				return errors.New("--task-id requires a value")
+			}
+			ctx.TaskID = args[i+1]
+			i++
+
+		case "--repo":
+			if i+1 >= len(args) {
+				return errors.New("--repo requires a value")
+			}
+			ctx.Repo = args[i+1]
+			i++
+
+		case "--branch":
+			if i+1 >= len(args) {
+				return errors.New("--branch requires a value")
+			}
+			ctx.Branch = args[i+1]
+			i++
+
+		case "--base-commit":
+			if i+1 >= len(args) {
+				return errors.New("--base-commit requires a value")
+			}
+			ctx.BaseCommit = args[i+1]
 			i++
 
 		case "--intent":
@@ -72,6 +131,27 @@ func AgentWrite(args []string) error {
 			ctx.ActualDelta = args[i+1]
 			i++
 
+		case "--decisions":
+			if i+1 >= len(args) {
+				return errors.New("--decisions requires a value")
+			}
+			ctx.Decisions = splitCSV(args[i+1])
+			i++
+
+		case "--risks":
+			if i+1 >= len(args) {
+				return errors.New("--risks requires a value")
+			}
+			ctx.Risks = splitCSV(args[i+1])
+			i++
+
+		case "--next-steps":
+			if i+1 >= len(args) {
+				return errors.New("--next-steps requires a value")
+			}
+			ctx.NextSteps = splitCSV(args[i+1])
+			i++
+
 		default:
 			return fmt.Errorf("unknown agit agent write option: %s", args[i])
 		}
@@ -89,6 +169,39 @@ func AgentWrite(args []string) error {
 		ctx.Provider = "unknown-agent"
 	}
 
+	populateGitContext(&ctx)
+
+	if err := SaveAgentContext(&ctx); err != nil {
+		return err
+	}
+
+	if os.Getenv("AGIT_MCP_SILENT") != "1" {
+		fmt.Println("Agent context written to", filepath.Join(".agit", "state", "current.json"))
+		fmt.Println("Suggested commit message:", ctx.CommitMessageSuggestion)
+	}
+
+	return nil
+}
+
+func SaveAgentContext(ctx *AgentContext) error {
+	if ctx.SchemaVersion == "" {
+		ctx.SchemaVersion = "agit.agent-context.v0"
+	}
+
+	if ctx.CreatedAt == "" {
+		ctx.CreatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	if ctx.Provider == "" {
+		ctx.Provider = "unknown-agent"
+	}
+
+	if ctx.CommitMessageSuggestion == "" {
+		ctx.CommitMessageSuggestion = ctx.IntentSummary
+	}
+
+	populateGitContext(ctx)
+
 	if err := os.MkdirAll(filepath.Join(".agit", "state"), 0755); err != nil {
 		return err
 	}
@@ -99,16 +212,7 @@ func AgentWrite(args []string) error {
 	}
 
 	path := filepath.Join(".agit", "state", "current.json")
-	if err := os.WriteFile(path, raw, 0644); err != nil {
-		return err
-	}
-
-	if os.Getenv("AGIT_MCP_SILENT") != "1" {
-		fmt.Println("Agent context written to", path)
-		fmt.Println("Suggested commit message:", ctx.CommitMessageSuggestion)
-	}
-
-	return nil
+	return os.WriteFile(path, raw, 0644)
 }
 
 func LoadAgentContext() (*AgentContext, bool, error) {
@@ -128,6 +232,69 @@ func LoadAgentContext() (*AgentContext, bool, error) {
 	}
 
 	return &ctx, true, nil
+}
+
+func ParseAgentContextJSON(raw []byte) (*AgentContext, error) {
+	var input agentContextInput
+	if err := json.Unmarshal(raw, &input); err != nil {
+		return nil, err
+	}
+
+	ctx := &AgentContext{
+		SchemaVersion:           input.SchemaVersion,
+		Provider:                input.Provider,
+		TaskID:                  input.TaskID,
+		Repo:                    input.Repo,
+		Branch:                  input.Branch,
+		BaseCommit:              input.BaseCommit,
+		IntentSummary:           firstNonEmpty(input.IntentSummary, input.Intent),
+		CommitMessageSuggestion: firstNonEmpty(input.CommitMessageSuggestion, input.Message),
+		ActiveFiles:             firstNonEmptySlice(input.ActiveFiles, input.Files),
+		PlannedDelta:            firstNonEmpty(input.PlannedDelta, input.Planned),
+		ActualDelta:             firstNonEmpty(input.ActualDelta, input.Actual),
+		Decisions:               input.Decisions,
+		Risks:                   input.Risks,
+		NextSteps:               input.NextSteps,
+		CreatedAt:               time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if ctx.IntentSummary == "" {
+		return nil, errors.New("provider context missing required intent or intentSummary")
+	}
+
+	return ctx, nil
+}
+
+func populateGitContext(ctx *AgentContext) {
+	if ctx.Repo == "" {
+		ctx.Repo, _ = gitwrap.OutputQuiet("config", "--get", "remote.origin.url")
+	}
+
+	if ctx.Branch == "" {
+		ctx.Branch, _ = gitwrap.OutputQuiet("branch", "--show-current")
+	}
+
+	if ctx.BaseCommit == "" {
+		ctx.BaseCommit, _ = gitwrap.OutputQuiet("rev-parse", "HEAD")
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func firstNonEmptySlice(values ...[]string) []string {
+	for _, value := range values {
+		if len(value) > 0 {
+			return value
+		}
+	}
+	return nil
 }
 
 func splitCSV(value string) []string {

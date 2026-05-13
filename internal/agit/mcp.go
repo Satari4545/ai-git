@@ -79,6 +79,22 @@ func MCPServe() error {
 									"type":        "string",
 									"description": "Comma-separated active file list.",
 								},
+								"taskID": map[string]any{
+									"type":        "string",
+									"description": "External task or ticket ID.",
+								},
+								"repo": map[string]any{
+									"type":        "string",
+									"description": "Repository identifier or remote URL.",
+								},
+								"branch": map[string]any{
+									"type":        "string",
+									"description": "Current Git branch.",
+								},
+								"baseCommit": map[string]any{
+									"type":        "string",
+									"description": "Commit SHA the agent started from.",
+								},
 								"planned": map[string]any{
 									"type":        "string",
 									"description": "Planned logic delta.",
@@ -87,6 +103,18 @@ func MCPServe() error {
 									"type":        "string",
 									"description": "Actual code delta.",
 								},
+								"decisions": map[string]any{
+									"type":        "string",
+									"description": "Comma-separated important decisions.",
+								},
+								"risks": map[string]any{
+									"type":        "string",
+									"description": "Comma-separated risks or caveats.",
+								},
+								"nextSteps": map[string]any{
+									"type":        "string",
+									"description": "Comma-separated suggested next steps.",
+								},
 							},
 							"required": []string{"intent"},
 						},
@@ -94,6 +122,22 @@ func MCPServe() error {
 					{
 						"name":        "get_context",
 						"description": "Read AGIT context restored from the currently checked-out commit.",
+						"inputSchema": map[string]any{
+							"type":       "object",
+							"properties": map[string]any{},
+						},
+					},
+					{
+						"name":        "get_git_state",
+						"description": "Read current Git repo state so an agent can record accurate context.",
+						"inputSchema": map[string]any{
+							"type":       "object",
+							"properties": map[string]any{},
+						},
+					},
+					{
+						"name":        "get_context_status",
+						"description": "Read active agent context freshness and Git state.",
 						"inputSchema": map[string]any{
 							"type":       "object",
 							"properties": map[string]any{},
@@ -129,6 +173,10 @@ func handleToolCall(req MCPRequest) {
 		handleRecordContext(req.ID, params.Arguments)
 	case "get_context":
 		handleGetContext(req.ID)
+	case "get_git_state":
+		handleGetGitState(req.ID)
+	case "get_context_status":
+		handleGetContextStatus(req.ID)
 	default:
 		writeMCPError(req.ID, -32601, "unknown tool")
 	}
@@ -149,11 +197,18 @@ func handleRecordContext(id any, arguments map[string]any) {
 	}
 
 	addArg("--provider", arguments["provider"])
+	addArg("--task-id", arguments["taskID"])
+	addArg("--repo", arguments["repo"])
+	addArg("--branch", arguments["branch"])
+	addArg("--base-commit", arguments["baseCommit"])
 	addArg("--intent", arguments["intent"])
 	addArg("--message", arguments["message"])
 	addArg("--files", arguments["files"])
 	addArg("--planned", arguments["planned"])
 	addArg("--actual", arguments["actual"])
+	addArg("--decisions", arguments["decisions"])
+	addArg("--risks", arguments["risks"])
+	addArg("--next-steps", arguments["nextSteps"])
 
 	os.Setenv("AGIT_MCP_SILENT", "1")
 	defer os.Unsetenv("AGIT_MCP_SILENT")
@@ -173,6 +228,32 @@ func handleRecordContext(id any, arguments map[string]any) {
 	})
 }
 
+func handleGetGitState(id any) {
+	raw, err := json.MarshalIndent(BuildGitState(), "", "  ")
+	if err != nil {
+		writeMCPError(id, -32000, err.Error())
+		return
+	}
+
+	writeTextResult(id, string(raw))
+}
+
+func handleGetContextStatus(id any) {
+	status, err := BuildContextStatus()
+	if err != nil {
+		writeMCPError(id, -32000, err.Error())
+		return
+	}
+
+	raw, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		writeMCPError(id, -32000, err.Error())
+		return
+	}
+
+	writeTextResult(id, string(raw))
+}
+
 func handleGetContext(id any) {
 	raw, ok, err := LoadCheckoutContextRaw()
 	if err != nil {
@@ -181,22 +262,19 @@ func handleGetContext(id any) {
 	}
 
 	if !ok {
-		writeMCPResult(id, map[string]any{
-			"content": []map[string]any{
-				{
-					"type": "text",
-					"text": "No checkout context has been restored. Run `agit checkout <branch>` on a commit with AGIT notes.",
-				},
-			},
-		})
+		writeTextResult(id, "No checkout context has been restored. Run `agit checkout <branch>` on a commit with AGIT notes.")
 		return
 	}
 
+	writeTextResult(id, string(raw))
+}
+
+func writeTextResult(id any, text string) {
 	writeMCPResult(id, map[string]any{
 		"content": []map[string]any{
 			{
 				"type": "text",
-				"text": string(raw),
+				"text": text,
 			},
 		},
 	})

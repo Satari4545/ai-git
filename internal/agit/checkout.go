@@ -1,10 +1,12 @@
 package agit
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	gitwrap "github.com/Satari4545/ai-git/internal/git"
@@ -19,7 +21,9 @@ type RestoredCheckoutContext struct {
 }
 
 func Checkout(args []string) error {
-	if err := gitwrap.Run(append([]string{"checkout"}, args...)...); err != nil {
+	gitArgs, feedOverride := stripCheckoutAgitArgs(args)
+
+	if err := gitwrap.Run(append([]string{"checkout"}, gitArgs...)...); err != nil {
 		return err
 	}
 
@@ -30,11 +34,69 @@ func Checkout(args []string) error {
 
 	if restored {
 		fmt.Println("agit: restored checkout context from HEAD")
+		shouldFeed, err := ShouldFeedCheckoutContext(feedOverride)
+		if err != nil {
+			return err
+		}
+		if shouldFeed {
+			if err := FeedCodexCheckoutContext(); err != nil {
+				return err
+			}
+		}
 	} else {
 		fmt.Println("agit: no AGIT context note found on HEAD")
 	}
 
 	return nil
+}
+
+func stripCheckoutAgitArgs(args []string) ([]string, string) {
+	gitArgs := []string{}
+	feedOverride := ""
+
+	for _, arg := range args {
+		switch arg {
+		case "--feed-context":
+			feedOverride = "enabled"
+		case "--no-feed-context":
+			feedOverride = "disabled"
+		default:
+			gitArgs = append(gitArgs, arg)
+		}
+	}
+
+	return gitArgs, feedOverride
+}
+
+func ShouldFeedCheckoutContext(feedOverride string) (bool, error) {
+	switch feedOverride {
+	case "enabled":
+		return true, nil
+	case "disabled":
+		return false, nil
+	}
+
+	switch CheckoutFeedMode() {
+	case "enabled":
+		return true, nil
+	case "disabled":
+		return false, nil
+	default:
+		return promptForCheckoutFeed()
+	}
+}
+
+func promptForCheckoutFeed() (bool, error) {
+	fmt.Print("Feed restored AGIT context to Codex? [y/N] ")
+
+	reader := bufio.NewReader(os.Stdin)
+	answer, err := reader.ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+
+	answer = strings.TrimSpace(strings.ToLower(answer))
+	return answer == "y" || answer == "yes", nil
 }
 
 func RestoreHEADContext() (bool, error) {

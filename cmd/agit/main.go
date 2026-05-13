@@ -48,6 +48,25 @@ func main() {
 		} else {
 			fmt.Println("usage: agit agent write --intent ... --message ...")
 		}
+	case "context":
+		if len(args) > 0 && args[0] == "status" {
+			if err := agit.PrintContextStatus(); err != nil {
+				fmt.Fprintln(os.Stderr, "agit context status error:", err)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Println("usage: agit context status")
+		}
+	case "bridge":
+		if err := agit.Bridge(args); err != nil {
+			fmt.Fprintln(os.Stderr, "agit bridge error:", err)
+			os.Exit(1)
+		}
+	case "config":
+		if err := agit.Config(args); err != nil {
+			fmt.Fprintln(os.Stderr, "agit config error:", err)
+			os.Exit(1)
+		}
 	case "push":
 		if err := agit.Push(args); err != nil {
 			fmt.Fprintln(os.Stderr, "agit push error:", err)
@@ -90,7 +109,12 @@ func printHelp() {
 Usage:
   agit <git-command> [args...]
   agit commit [git commit args...]
-  agit checkout [git checkout args...]
+  agit checkout [--feed-context|--no-feed-context] [git checkout args...]
+  agit context status
+  agit bridge codex install
+  agit bridge codex session set <id>
+  agit config checkout-feed prompt|enable|disable
+  agit config context-provider set <command>
   agit push [git push args...]
   agit debug
   agit mcp record-context --intent <summary> [--message <message>]
@@ -101,6 +125,9 @@ Usage:
 Commands:
   commit              Commit staged changes and attach AGIT context metadata.
   checkout            Checkout a branch and restore AGIT context from HEAD.
+  context status      Show active agent context and Git state.
+  bridge              Configure provider bridges for coding agents.
+  config              Configure AGIT behavior for this repo.
   push                Push Git commits, then push AGIT Git notes.
   debug               Show the AGIT note attached to HEAD.
   mcp record-context  Record coding-agent context for the next commit.

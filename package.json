@@ -1,6 +1,6 @@
 {
   "name": "agentic-git",
-  "version": "0.1.1",
+  "version": "0.1.5",
   "description": "Git with AI coding-agent context attached to commits.",
   "bin": {
     "agit": "bin/agit.js"

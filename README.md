@@ -40,7 +40,13 @@ go build -o agit.exe ./cmd/agit
 Record context manually:
 
 ```sh
-agit mcp record-context --provider codex --intent "Add MCP install command" --message "Add MCP install support" --files "cmd/agit/main.go,internal/agit/mcp_installs.go"
+agit mcp record-context --provider codex --intent "Add MCP install command" --message "Add MCP install support" --files "cmd/agit/main.go,internal/agit/mcp_installs.go" --risks "MCP client config differs by tool" --next-steps "Test install on a clean machine"
+```
+
+Check context freshness before committing:
+
+```sh
+agit context status
 ```
 
 Commit with context:
@@ -50,7 +56,70 @@ git add .
 agit commit
 ```
 
-If the recorded agent context includes a suggested message, `agit commit` uses it automatically. If a message is provided with `-m` or `--message`, ai-git appends an `Agit-Context-ID` trailer so the context ID becomes part of the commit object.
+When a context provider is configured, `agit commit` asks that provider for fresh agent context before creating the commit. The provider must print JSON to stdout. ai-git saves that context, uses the suggested message when no commit message is provided, appends an `Agit-Context-ID` trailer when possible, and stores the full payload as a Git note.
+
+Configure a context provider:
+
+```sh
+agit config context-provider set "your-agent-context-command"
+```
+
+Configure the Codex bridge:
+
+```sh
+agit bridge codex install
+agit mcp install codex
+```
+
+With that setup, `agit commit` calls `agit bridge codex provider`, which asks Codex to summarize the current session/repo as strict JSON context before the commit is created. The MCP install lets Codex also call `get_git_state`, `get_context_status`, `record_context`, and `get_context` directly.
+
+If multiple Codex sessions exist, pin the bridge to the right one:
+
+```sh
+agit bridge codex session set <session-id>
+```
+
+If no session is configured, the Codex bridge uses `codex exec resume --last`.
+
+Checkout feed prompts by default. To choose a default behavior:
+
+```sh
+agit config checkout-feed prompt
+agit config checkout-feed enable
+agit config checkout-feed disable
+```
+
+Then:
+
+```sh
+agit checkout feature-branch
+```
+
+If the checked-out commit has AGIT context, ai-git restores it and either prompts, feeds automatically, or skips feeding based on config.
+
+Override for one checkout:
+
+```sh
+agit checkout feature-branch --feed-context
+agit checkout feature-branch --no-feed-context
+```
+
+Provider JSON shape:
+
+```json
+{
+  "provider": "codex",
+  "intent": "Add checkout context restore",
+  "message": "Restore AGIT context on checkout",
+  "files": ["cmd/agit/main.go", "internal/agit/checkout.go"],
+  "planned": "Restore saved context after checkout.",
+  "actual": "Added checkout restore and MCP get_context.",
+  "risks": ["GitHub does not display custom Git notes"],
+  "nextSteps": ["Add push delta tracking"]
+}
+```
+
+If no provider is configured, `agit commit` falls back to context previously recorded through MCP. To commit without context, use `--allow-missing-context`.
 
 Checkout with context:
 
@@ -91,6 +160,8 @@ The MCP server exposes:
 
 - `record_context` to save active coding-agent context before `agit commit`.
 - `get_context` to read context restored by `agit checkout`.
+- `get_git_state` to let agents inspect branch, HEAD, staged files, unstaged files, and untracked files before recording context.
+- `get_context_status` to let agents inspect active context freshness before committing.
 
 ## Releasing
 

@@ -12,9 +12,21 @@ import (
 )
 
 func Commit(args []string) error {
+	refreshedCtx, err := RefreshContextFromProvider(args)
+	if err != nil {
+		return err
+	}
+	if refreshedCtx {
+		fmt.Println("agit: refreshed agent context from provider")
+	}
+
 	agentCtx, hasAgentCtx, err := LoadAgentContext()
 	if err != nil {
 		return err
+	}
+
+	if !hasAgentCtx && !hasAgitFlag(args, "--allow-missing-context") {
+		return fmt.Errorf("missing agent context. Configure an agent provider with 'git config agit.contextCommand <command>', connect the AGIT MCP server so your agent can call record_context, or commit with '--allow-missing-context'")
 	}
 
 	if hasAgentCtx {
@@ -146,6 +158,14 @@ func stripAgitArgs(args []string) []string {
 		}
 
 		if a == "--allow-stale-context" {
+			continue
+		}
+
+		if a == "--allow-missing-context" {
+			continue
+		}
+
+		if a == "--no-agent-context" {
 			continue
 		}
 

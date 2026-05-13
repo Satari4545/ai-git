@@ -1,0 +1,251 @@
+package agit
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+func Bridge(args []string) error {
+	if len(args) < 1 || args[0] != "codex" {
+		fmt.Println("usage: agit bridge codex install|provider|session set <id>|session get|session unset")
+		return nil
+	}
+
+	if len(args) < 2 {
+		fmt.Println("usage: agit bridge codex install|provider|session set <id>|session get|session unset")
+		return nil
+	}
+
+	switch args[1] {
+	case "install":
+		return installCodexBridge()
+	case "provider":
+		return runCodexBridgeProvider()
+	case "feed":
+		return FeedCodexCheckoutContext()
+	case "session":
+		return codexBridgeSession(args[2:])
+	default:
+		fmt.Println("usage: agit bridge codex install|provider|session set <id>|session get|session unset")
+		return nil
+	}
+}
+
+func installCodexBridge() error {
+	if err := gitwrapRunConfig("agit.contextCommand", "agit bridge codex provider"); err != nil {
+		return err
+	}
+
+	fmt.Println("agit: Codex context provider configured")
+	fmt.Println("agit: run 'agit mcp install codex' so Codex can also restore/read context through MCP")
+	return nil
+}
+
+func codexBridgeSession(args []string) error {
+	if len(args) == 2 && args[0] == "set" {
+		if err := gitwrapRunConfig("agit.codexSession", args[1]); err != nil {
+			return err
+		}
+		fmt.Println("agit: Codex session configured")
+		return nil
+	}
+
+	if len(args) == 1 && args[0] == "get" {
+		sessionID, _ := gitwrapOutputConfig("agit.codexSession")
+		if sessionID == "" {
+			fmt.Println("No Codex session configured. Provider will use --last.")
+			return nil
+		}
+		fmt.Println(sessionID)
+		return nil
+	}
+
+	if len(args) == 1 && args[0] == "unset" {
+		_ = gitwrapUnsetConfig("agit.codexSession")
+		fmt.Println("agit: Codex session unset")
+		return nil
+	}
+
+	fmt.Println("usage: agit bridge codex session set <id>|get|unset")
+	return nil
+}
+
+func runCodexBridgeProvider() error {
+	raw, err := askCodexForContext()
+	if err != nil {
+		return err
+	}
+
+	ctx, err := ParseAgentContextJSON(raw)
+	if err != nil {
+		return err
+	}
+
+	ctx.Provider = firstNonEmpty(ctx.Provider, "codex")
+
+	normalized, err := json.Marshal(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(string(normalized))
+	return nil
+}
+
+func FeedCodexCheckoutContext() error {
+	raw, ok, err := LoadCheckoutContextRaw()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("no checkout context restored; run agit checkout on a commit with AGIT notes first")
+	}
+
+	prompt := "The user just checked out a branch. Read this ai-git restored checkout context and use it as working context for future coding help. Do not summarize it back unless asked.\n\n" + string(raw)
+	cmdArgs := []string{"exec", "resume"}
+	if sessionID := codexSessionID(); sessionID != "" {
+		cmdArgs = append(cmdArgs, sessionID)
+	} else {
+		cmdArgs = append(cmdArgs, "--last")
+	}
+	cmdArgs = append(cmdArgs, prompt)
+
+	cmd := exec.Command(codexExecutable(), cmdArgs...)
+	cmd.Env = append(os.Environ(), "AGIT_CODEX_CONTEXT_FEED=1")
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return fmt.Errorf("Codex checkout feed failed: %s", message)
+	}
+
+	fmt.Println("agit: fed checkout context to Codex")
+	return nil
+}
+
+func askCodexForContext() ([]byte, error) {
+	tmp, err := os.CreateTemp("", "agit-codex-context-*.json")
+	if err != nil {
+		return nil, err
+	}
+	tmpPath := tmp.Name()
+	_ = tmp.Close()
+	defer os.Remove(tmpPath)
+
+	cmdArgs := []string{"exec", "resume"}
+	if sessionID := codexSessionID(); sessionID != "" {
+		cmdArgs = append(cmdArgs, sessionID)
+	} else {
+		cmdArgs = append(cmdArgs, "--last")
+	}
+	cmdArgs = append(cmdArgs, "--output-last-message", tmpPath, codexContextPrompt())
+
+	cmd := exec.Command(codexExecutable(), cmdArgs...)
+	cmd.Env = append(os.Environ(), "AGIT_CODEX_CONTEXT_PROVIDER=1")
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return nil, fmt.Errorf("Codex context bridge failed: %s", message)
+	}
+
+	raw, err := os.ReadFile(tmpPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractJSONObject(raw)
+}
+
+func codexExecutable() string {
+	if runtime.GOOS == "windows" {
+		return "codex.cmd"
+	}
+	return "codex"
+}
+
+func codexContextPrompt() string {
+	return `Return ONLY a JSON object for ai-git agent context. Do not include markdown or commentary.
+
+Use this schema:
+{
+  "provider": "codex",
+  "intent": "short task intent",
+  "message": "suggested git commit message",
+  "files": ["path/to/file"],
+  "planned": "planned change summary",
+  "actual": "actual change summary",
+  "decisions": ["important decision"],
+  "risks": ["risk or caveat"],
+  "nextSteps": ["useful next step"]
+}
+
+Use the current Codex session and current repository state. Do not include hidden chain-of-thought. Keep values concise and auditable.`
+}
+
+func extractJSONObject(raw []byte) ([]byte, error) {
+	start := bytes.IndexByte(raw, '{')
+	end := bytes.LastIndexByte(raw, '}')
+	if start < 0 || end < start {
+		return nil, errors.New("Codex did not return a JSON object")
+	}
+
+	candidate := raw[start : end+1]
+	var payload map[string]any
+	if err := json.Unmarshal(candidate, &payload); err != nil {
+		return nil, err
+	}
+
+	return candidate, nil
+}
+
+func gitwrapRunConfig(key string, value string) error {
+	cmd := exec.Command("git", "config", key, value)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Dir, _ = filepath.Abs(".")
+	return cmd.Run()
+}
+
+func gitwrapOutputConfig(key string) (string, error) {
+	var stdout bytes.Buffer
+	cmd := exec.Command("git", "config", "--get", key)
+	cmd.Stdout = &stdout
+	cmd.Dir, _ = filepath.Abs(".")
+	err := cmd.Run()
+	return strings.TrimSpace(stdout.String()), err
+}
+
+func gitwrapUnsetConfig(key string) error {
+	cmd := exec.Command("git", "config", "--unset", key)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Dir, _ = filepath.Abs(".")
+	return cmd.Run()
+}
+
+func codexSessionID() string {
+	if sessionID := os.Getenv("AGIT_CODEX_SESSION_ID"); sessionID != "" {
+		return sessionID
+	}
+
+	sessionID, _ := gitwrapOutputConfig("agit.codexSession")
+	return sessionID
+}
