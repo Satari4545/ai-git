@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,9 +67,9 @@ func runContextProvider(command string) ([]byte, error) {
 			}
 			return nil, fmt.Errorf("agent context provider failed: %s", message)
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(contextProviderTimeout()):
 		_ = cmd.Process.Kill()
-		return nil, fmt.Errorf("agent context provider timed out after 10s")
+		return nil, fmt.Errorf("agent context provider timed out after %s", contextProviderTimeout())
 	}
 
 	raw := bytes.TrimSpace(stdout.Bytes())
@@ -77,6 +78,21 @@ func runContextProvider(command string) ([]byte, error) {
 	}
 
 	return raw, nil
+}
+
+func contextProviderTimeout() time.Duration {
+	if value := os.Getenv("AGIT_CONTEXT_TIMEOUT_SEC"); value != "" {
+		if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+			return time.Duration(seconds) * time.Second
+		}
+	}
+
+	value, _ := gitwrap.OutputQuiet("config", "--get", "agit.contextTimeoutSec")
+	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+
+	return 60 * time.Second
 }
 
 func shellCommand(command string) *exec.Cmd {

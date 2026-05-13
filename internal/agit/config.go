@@ -57,7 +57,16 @@ func Config(args []string) error {
 		}
 	}
 
+	if len(args) == 2 && args[0] == "context-timeout" {
+		if err := gitwrap.Run("config", "agit.contextTimeoutSec", args[1]); err != nil {
+			return err
+		}
+		fmt.Println("agit: context provider timeout set")
+		return nil
+	}
+
 	fmt.Println("usage: agit config context-provider set <command>|get|unset")
+	fmt.Println("usage: agit config context-timeout <seconds>")
 	fmt.Println("usage: agit config checkout-feed enable|disable|prompt|status")
 	return nil
 }

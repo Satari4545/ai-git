@@ -62,6 +62,7 @@ Configure a context provider:
 
 ```sh
 agit config context-provider set "your-agent-context-command"
+agit config context-timeout 60
 ```
 
 Configure the Codex bridge:

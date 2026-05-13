@@ -114,6 +114,7 @@ Usage:
   agit bridge codex install
   agit bridge codex session set <id>
   agit config checkout-feed prompt|enable|disable
+  agit config context-timeout <seconds>
   agit config context-provider set <command>
   agit push [git push args...]
   agit debug
