@@ -1,0 +1,135 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "repo": "https://github.com/Satari4545/ai-git.git",
+    "branch": "main",
+    "baseCommit": "9a21fdfad185b8be5d9a50e3231183aff8c72156",
+    "intentSummary": "Verify direct agit Codex bridge after timeout fix",
+    "commitMessageSuggestion": "Verify Codex provider bridge timeout fix",
+    "activeFiles": [
+      "internal/agit/provider.go",
+      "internal/agit/config.go",
+      "cmd/agit/main.go",
+      "README.md",
+      "agit.exe"
+    ],
+    "plannedDelta": "Confirm direct agit uses the rebuilt binary with the 60 second provider timeout and can recall Codex context successfully.",
+    "actualDelta": "Direct agit bridge codex provider returned valid JSON after the timeout increase and rebuilt PATH binary update.",
+    "decisions": [
+      "Use 60 seconds as default context provider timeout",
+      "Allow AGIT_CONTEXT_TIMEOUT_SEC and agit.contextTimeoutSec overrides",
+      "Use the Codex bridge provider as the commit-time context source when configured"
+    ],
+    "risks": [
+      "The source changes still need to be committed and released before npm users receive this behavior",
+      "The Codex bridge depends on codex exec resume targeting the intended session",
+      "The local PATH binary copy is a development shortcut and should be replaced by the normal release flow"
+    ],
+    "nextSteps": [
+      "Run agit commit to verify end-to-end commit context capture",
+      "Inspect the commit with agit debug",
+      "Build v0.1.5 release assets",
+      "Publish the next npm package after uploading release assets"
+    ],
+    "createdAt": "2026-05-13T04:03:31Z"
+  },
+  "contextID": "ctx_sha256:df5c2c53795a082f6af3bdb3c2360d059272406d7e87699a11009fa06330fa0f",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://AGENTS.md",
+          "name": "AGENTS.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://HANDOFF.md",
+          "name": "HANDOFF.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/agent.go",
+          "name": "internal/agit/agent.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/bridge_codex.go",
+          "name": "internal/agit/bridge_codex.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/checkout.go",
+          "name": "internal/agit/checkout.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/commit.go",
+          "name": "internal/agit/commit.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/config.go",
+          "name": "internal/agit/config.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/context.go",
+          "name": "internal/agit/context.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/mcp.go",
+          "name": "internal/agit/mcp.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/provider.go",
+          "name": "internal/agit/provider.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://package.json",
+          "name": "package.json",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Verify direct agit Codex bridge after timeout fix"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "AGENTS.md",
+        "HANDOFF.md",
+        "README.md",
+        "cmd/agit/main.go",
+        "internal/agit/agent.go",
+        "internal/agit/bridge_codex.go",
+        "internal/agit/checkout.go",
+        "internal/agit/commit.go",
+        "internal/agit/config.go",
+        "internal/agit/context.go",
+        "internal/agit/mcp.go",
+        "internal/agit/provider.go",
+        "package.json"
+      ],
+      "gitStatus": "A  AGENTS.md\nA  HANDOFF.md\nMM README.md\nMM cmd/agit/main.go\nM  internal/agit/agent.go\nA  internal/agit/bridge_codex.go\nM  internal/agit/checkout.go\nM  internal/agit/commit.go\nAM internal/agit/config.go\nA  internal/agit/context.go\nM  internal/agit/mcp.go\nAM internal/agit/provider.go\nM  package.json",
+      "diffStat": "AGENTS.md                     | 195 ++++++++++++++++++++++++++++++++\n HANDOFF.md                    | 235 +++++++++++++++++++++++++++++++++++++++\n README.md                     |  75 ++++++++++++-\n cmd/agit/main.go              |  29 ++++-\n internal/agit/agent.go        | 189 +++++++++++++++++++++++++++++--\n internal/agit/bridge_codex.go | 251 ++++++++++++++++++++++++++++++++++++++++++\n internal/agit/checkout.go     |  64 ++++++++++-\n internal/agit/commit.go       |  20 ++++\n internal/agit/config.go       |  77 +++++++++++++\n internal/agit/context.go      | 154 ++++++++++++++++++++++++++\n internal/agit/mcp.go          |  96 ++++++++++++++--\n internal/agit/provider.go     |  97 ++++++++++++++++\n package.json                  |   2 +-\n 13 files changed, 1459 insertions(+), 25 deletions(-)"
+    },
+    "createdAt": "2026-05-13T04:03:32Z"
+  }
+}
