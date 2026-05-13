@@ -12,11 +12,17 @@ import (
 )
 
 func Commit(args []string) error {
+	quiet := hasAgitFlag(args, "--quiet")
+
+	if !quiet {
+		fmt.Println("agit: preparing commit context")
+	}
+
 	refreshedCtx, err := RefreshContextFromProvider(args)
 	if err != nil {
 		return err
 	}
-	if refreshedCtx {
+	if refreshedCtx && !quiet {
 		fmt.Println("agit: refreshed agent context from provider")
 	}
 
@@ -51,6 +57,10 @@ func Commit(args []string) error {
 		intent = extractCommitMessage(commitArgs)
 	}
 
+	if !quiet {
+		fmt.Println("agit: capturing staged Git state")
+	}
+
 	_, contextID, rawState, err := state.Capture(intent)
 	if err != nil {
 		return err
@@ -65,6 +75,10 @@ func Commit(args []string) error {
 
 	if hasAgentCtx {
 		notePayload["agentContext"] = agentCtx
+	}
+
+	if !quiet {
+		fmt.Println("agit: creating Git commit")
 	}
 
 	if err := gitwrap.Run(append([]string{"commit"}, commitArgs...)...); err != nil {
@@ -92,6 +106,10 @@ func Commit(args []string) error {
 	}
 	if err := tmp.Close(); err != nil {
 		return err
+	}
+
+	if !quiet {
+		fmt.Println("agit: attaching context note")
 	}
 
 	if err := gitwrap.Run("notes", "--ref=agit", "add", "-f", "-F", tmp.Name(), head); err != nil {
@@ -166,6 +184,10 @@ func stripAgitArgs(args []string) []string {
 		}
 
 		if a == "--no-agent-context" {
+			continue
+		}
+
+		if a == "--quiet" {
 			continue
 		}
 

@@ -27,6 +27,8 @@ func RefreshContextFromProvider(args []string) (bool, error) {
 		return false, nil
 	}
 
+	fmt.Printf("agit: asking agent provider for context (timeout %s)\n", contextProviderTimeout())
+
 	raw, err := runContextProvider(command)
 	if err != nil {
 		return false, err
