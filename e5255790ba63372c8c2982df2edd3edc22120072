@@ -1,0 +1,87 @@
+{
+  "agentContext": {
+    "schemaVersion": "agit.agent-context.v0",
+    "provider": "codex",
+    "repo": "https://github.com/Satari4545/ai-git.git",
+    "branch": "main",
+    "baseCommit": "d348e80380496e8f63dc1905c7d20ea522c33058",
+    "intentSummary": "Verify end-to-end Codex provider commit flow",
+    "commitMessageSuggestion": "Verify Codex provider commit flow",
+    "activeFiles": [
+      "internal/agit/provider.go",
+      "internal/agit/config.go",
+      "internal/agit/bridge_codex.go",
+      "internal/agit/commit.go",
+      "cmd/agit/main.go",
+      "README.md",
+      "HANDOFF.md",
+      "AGENTS.md",
+      "package.json"
+    ],
+    "plannedDelta": "Use the Codex provider bridge as the commit-time context source, then create a commit that embeds the context ID and attaches the full context as a Git note.",
+    "actualDelta": "Prepared the direct agit binary with the longer provider timeout, verified agit bridge codex provider returns valid JSON, and reached the point where agit commit should exercise the full provider-to-commit flow.",
+    "decisions": [
+      "Keep the provider bridge as the path for agit commit to pull context from agents",
+      "Keep MCP as the path for agents to read and write context directly",
+      "Use session pinning when users need to target a specific Codex session",
+      "Keep checkout feed prompt-based by default with enable/disable and per-checkout override flags"
+    ],
+    "risks": [
+      "Codex provider calls add commit latency",
+      "If multiple Codex sessions exist and no session is pinned, --last may target the wrong context",
+      "Git notes are not visible in GitHub commit UI",
+      "Current changes still need tests beyond compile/package validation"
+    ],
+    "nextSteps": [
+      "Run agit commit now",
+      "Run agit debug to inspect the attached note",
+      "Push source changes to the private repo",
+      "Build and upload v0.1.5 release assets before publishing npm"
+    ],
+    "createdAt": "2026-05-13T04:04:14Z"
+  },
+  "contextID": "ctx_sha256:5ee3c3bdeda341c6c1235d26e8a3319286d639488cc9c02f42ea999a074eea0a",
+  "logicState": {
+    "schemaVersion": "agit.logic-delta.v0",
+    "kind": "logic_delta",
+    "mcp": {
+      "systemPrompt": "unknown",
+      "resources": [
+        {
+          "uri": "file://README.md",
+          "name": "README.md",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://cmd/agit/main.go",
+          "name": "cmd/agit/main.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/config.go",
+          "name": "internal/agit/config.go",
+          "mimeType": "text/plain"
+        },
+        {
+          "uri": "file://internal/agit/provider.go",
+          "name": "internal/agit/provider.go",
+          "mimeType": "text/plain"
+        }
+      ]
+    },
+    "agentThinking": {
+      "intentSummary": "Verify end-to-end Codex provider commit flow"
+    },
+    "codeReality": {
+      "activeFiles": [
+        "README.md",
+        "cmd/agit/main.go",
+        "internal/agit/config.go",
+        "internal/agit/provider.go"
+      ],
+      "gitStatus": "M  README.md\nM  cmd/agit/main.go\nM  internal/agit/config.go\nM  internal/agit/provider.go",
+      "diffStat": "README.md                 |  1 +\n cmd/agit/main.go          |  1 +\n internal/agit/config.go   |  9 +++++++++\n internal/agit/provider.go | 20 ++++++++++++++++++--\n 4 files changed, 29 insertions(+), 2 deletions(-)"
+    },
+    "createdAt": "2026-05-13T04:04:14Z"
+  }
+}
