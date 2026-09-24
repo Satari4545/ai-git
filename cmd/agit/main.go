@@ -54,8 +54,13 @@ func main() {
 				fmt.Fprintln(os.Stderr, "agit context status error:", err)
 				os.Exit(1)
 			}
+		} else if len(args) > 0 && args[0] == "log" {
+			if err := agit.ContextLog(args[1:]); err != nil {
+				fmt.Fprintln(os.Stderr, "agit context log error:", err)
+				os.Exit(1)
+			}
 		} else {
-			fmt.Println("usage: agit context status")
+			fmt.Println("usage: agit context status|log [-n N] [--json] [-- <path>...]")
 		}
 	case "bridge":
 		if err := agit.Bridge(args); err != nil {
@@ -111,6 +116,7 @@ Usage:
   agit commit [git commit args...]
   agit checkout [--feed-context|--no-feed-context] [git checkout args...]
   agit context status
+  agit context log [-n N] [--json] [-- <path>...]
   agit bridge codex install
   agit bridge codex session set <id>
   agit config checkout-feed prompt|enable|disable
@@ -127,6 +133,7 @@ Commands:
   commit              Commit staged changes and attach AGIT context metadata.
   checkout            Checkout a branch and restore AGIT context from HEAD.
   context status      Show active agent context and Git state.
+  context log         Show AGIT context notes attached to recent commits.
   bridge              Configure provider bridges for coding agents.
   config              Configure AGIT behavior for this repo.
   push                Push Git commits, then push AGIT Git notes.
