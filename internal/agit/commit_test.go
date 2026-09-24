@@ -1,8 +1,15 @@
 package agit
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/Satari4545/ai-git/internal/state"
+	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
 func TestExtractIntent(t *testing.T) {
@@ -177,5 +184,62 @@ func TestHasAgitFlag(t *testing.T) {
 	}
 	if hasAgitFlag(args, "--intent") {
 		t.Error("expected --intent to be absent")
+	}
+}
+
+// TestCommitAttachesTrailerAndNote exercises the full Commit wiring: it must
+// embed the Agit-Context-ID trailer in the commit message and attach a
+// refs/notes/agit note to HEAD carrying the same ID bound to the captured
+// payload.
+func TestCommitAttachesTrailerAndNote(t *testing.T) {
+	dir := testutil.InitRepo(t)
+	testutil.StageFile(t, dir, "feat.go", "package feat\n")
+
+	if err := Commit([]string{"--quiet", "--allow-missing-context", "--intent", "ship feature", "-m", "add feature"}); err != nil {
+		t.Fatalf("Commit failed: %v", err)
+	}
+
+	msg := testutil.RunGit(t, dir, "log", "-1", "--format=%B")
+	var trailerID string
+	for _, line := range strings.Split(msg, "\n") {
+		if id, ok := strings.CutPrefix(line, "Agit-Context-ID: "); ok {
+			trailerID = strings.TrimSpace(id)
+		}
+	}
+	if trailerID == "" {
+		t.Fatalf("commit message has no Agit-Context-ID trailer:\n%s", msg)
+	}
+
+	head := strings.TrimSpace(testutil.RunGit(t, dir, "rev-parse", "HEAD"))
+	noteRaw := testutil.RunGit(t, dir, "notes", "--ref=agit", "show", head)
+	var note struct {
+		ContextID  string          `json:"contextID"`
+		LogicState json.RawMessage `json:"logicState"`
+	}
+	if err := json.Unmarshal([]byte(noteRaw), &note); err != nil {
+		t.Fatalf("note on HEAD is not valid JSON: %v\n%s", err, noteRaw)
+	}
+	if note.ContextID == "" {
+		t.Fatal("note on HEAD has no contextID")
+	}
+	if note.ContextID != trailerID {
+		t.Errorf("note contextID %q does not match commit trailer %q", note.ContextID, trailerID)
+	}
+
+	// The ID must bind to the payload the note carries.
+	var delta state.LogicDelta
+	if err := json.Unmarshal(note.LogicState, &delta); err != nil {
+		t.Fatalf("note logicState is not a valid logic delta: %v", err)
+	}
+	raw, err := json.Marshal(&delta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(raw)
+	if want := "ctx_sha256:" + hex.EncodeToString(sum[:]); note.ContextID != want {
+		t.Errorf("note contextID %q != sha256 of note payload (%q)", note.ContextID, want)
+	}
+	if delta.AgentThinking.IntentSummary != "ship feature" {
+		t.Errorf("note intent = %q, want %q", delta.AgentThinking.IntentSummary, "ship feature")
 	}
 }

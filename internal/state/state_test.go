@@ -1,6 +1,8 @@
 package state
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"regexp"
 	"strings"
@@ -94,16 +96,36 @@ func TestCaptureContextIDBindsToContent(t *testing.T) {
 	dir := testutil.InitRepo(t)
 	testutil.StageFile(t, dir, "a.go", "package a\n")
 
-	_, id1, _, err := Capture("first intent")
+	delta1, id1, _, err := Capture("first intent")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, id2, _, err := Capture("second intent")
+	delta2, id2, _, err := Capture("second intent")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if id1 == id2 {
 		t.Error("different intents produced the same context ID; the ID must bind to content")
+	}
+
+	// The ID must be the SHA-256 of the canonical (compact) JSON payload
+	// Capture hashes, not just a unique-per-call value.
+	for i, tc := range []struct {
+		delta *LogicDelta
+		id    string
+	}{
+		{delta1, id1},
+		{delta2, id2},
+	} {
+		raw, err := json.Marshal(tc.delta)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(raw)
+		want := "ctx_sha256:" + hex.EncodeToString(sum[:])
+		if tc.id != want {
+			t.Errorf("capture %d: context ID %q != sha256 of captured payload (%q)", i+1, tc.id, want)
+		}
 	}
 }
 
