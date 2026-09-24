@@ -1,0 +1,59 @@
+name: Merge command
+
+# Lets the repo owner merge a PR by commenting `/merge` on it.
+# The merge only happens when the PR is open and mergeable (CI green,
+# no conflicts). Anything else gets an explanatory comment instead.
+#
+# NOTE: `issue_comment` workflows run from the default branch, so this
+# only takes effect after it is merged to main.
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  merge:
+    # Only PR comments (not issue comments), only `/merge`, only the owner.
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/merge') &&
+      github.event.comment.author_association == 'OWNER'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge PR on owner command
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+
+          state=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state -q .state)
+          if [ "$state" != "OPEN" ]; then
+            gh pr comment "$PR_NUMBER" --repo "$REPO" \
+              --body "Not merging: PR is $state."
+            exit 1
+          fi
+
+          # GitHub computes mergeability asynchronously; wait briefly
+          # instead of failing on a transient UNKNOWN.
+          merge_state="UNKNOWN"
+          for _ in $(seq 1 12); do
+            merge_state=$(gh pr view "$PR_NUMBER" --repo "$REPO" \
+              --json mergeStateStatus -q .mergeStateStatus)
+            [ "$merge_state" != "UNKNOWN" ] && break
+            sleep 10
+          done
+
+          if [ "$merge_state" != "CLEAN" ]; then
+            gh pr comment "$PR_NUMBER" --repo "$REPO" \
+              --body "Not merging: PR is not mergeable (state: $merge_state). Make sure CI is green and there are no conflicts, then comment /merge again."
+            exit 1
+          fi
+
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --merge --delete-branch
+          gh pr comment "$PR_NUMBER" --repo "$REPO" \
+            --body "Merged via /merge command."
