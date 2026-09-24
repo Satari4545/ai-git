@@ -192,6 +192,12 @@ func TestHasAgitFlag(t *testing.T) {
 // refs/notes/agit note to HEAD carrying the same ID bound to the captured
 // payload.
 func TestCommitAttachesTrailerAndNote(t *testing.T) {
+	// Commit refreshes from the provider before honoring
+	// --allow-missing-context, and the provider is driven by
+	// AGIT_CONTEXT_COMMAND. Clear it so this test stays hermetic even
+	// where that variable is set in the ambient environment.
+	t.Setenv("AGIT_CONTEXT_COMMAND", "")
+
 	dir := testutil.InitRepo(t)
 	testutil.StageFile(t, dir, "feat.go", "package feat\n")
 

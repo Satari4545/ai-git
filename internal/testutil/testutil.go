@@ -35,6 +35,14 @@ func InitRepo(t *testing.T) string {
 	t.Helper()
 
 	dir := t.TempDir()
+
+	// Isolate git configuration: tests must never inherit the caller's
+	// global or system settings (commit signing, credential helpers,
+	// agit.contextCommand, ...), which could otherwise leak into
+	// temp-repo behavior and make tests environment-dependent.
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+
 	RunGit(t, dir, "init", "-q")
 	RunGit(t, dir, "config", "user.email", "agit-test@example.com")
 	RunGit(t, dir, "config", "user.name", "agit-test")
