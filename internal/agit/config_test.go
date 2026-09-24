@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	gitwrap "github.com/Satari4545/ai-git/internal/git"
+
+	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
 func agitConfigValue(t *testing.T, key string) string {
@@ -17,7 +19,7 @@ func agitConfigValue(t *testing.T, key string) string {
 }
 
 func TestConfigCheckoutFeedRoundTrip(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	for _, tc := range []struct {
 		arg      string
@@ -41,7 +43,7 @@ func TestConfigCheckoutFeedRoundTrip(t *testing.T) {
 }
 
 func TestConfigContextProviderRoundTrip(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	if err := Config([]string{"context-provider", "set", "my-provider --json"}); err != nil {
 		t.Fatalf("set failed: %v", err)
@@ -63,7 +65,7 @@ func TestConfigContextProviderRoundTrip(t *testing.T) {
 }
 
 func TestConfigContextTimeout(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	if err := Config([]string{"context-timeout", "42"}); err != nil {
 		t.Fatalf("Config(context-timeout) failed: %v", err)
@@ -74,7 +76,7 @@ func TestConfigContextTimeout(t *testing.T) {
 }
 
 func TestConfigUnknownArgsShowsUsage(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	// Unknown invocations print usage and return nil (no error).
 	if err := Config([]string{"bogus"}); err != nil {

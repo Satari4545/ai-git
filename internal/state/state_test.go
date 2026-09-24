@@ -2,72 +2,20 @@ package state
 
 import (
 	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Satari4545/ai-git/internal/testutil"
 )
-
-func initStateTestRepo(t *testing.T) string {
-	t.Helper()
-
-	dir := t.TempDir()
-
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v failed: %v\n%s", args, err, out)
-		}
-	}
-
-	run("init", "-q")
-	run("config", "user.email", "agit-test@example.com")
-	run("config", "user.name", "agit-test")
-
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(oldwd); err != nil {
-			t.Fatal(err)
-		}
-	})
-
-	return dir
-}
-
-func stageFile(t *testing.T, dir, path, content string) {
-	t.Helper()
-
-	full := filepath.Join(dir, path)
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command("git", "add", path)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git add failed: %v\n%s", err, out)
-	}
-}
 
 var contextIDPattern = regexp.MustCompile(`^ctx_sha256:[0-9a-f]{64}$`)
 
 func TestCaptureWithStagedChanges(t *testing.T) {
-	dir := initStateTestRepo(t)
-	stageFile(t, dir, "feat/new.go", "package feat\n")
-	stageFile(t, dir, "README.md", "# docs\n")
+	dir := testutil.InitRepo(t)
+	testutil.StageFile(t, dir, "feat/new.go", "package feat\n")
+	testutil.StageFile(t, dir, "README.md", "# docs\n")
 
 	delta, contextID, raw, err := Capture("implement feature")
 	if err != nil {
@@ -112,8 +60,8 @@ func TestCaptureWithStagedChanges(t *testing.T) {
 }
 
 func TestCaptureEmptyIntent(t *testing.T) {
-	dir := initStateTestRepo(t)
-	stageFile(t, dir, "a.go", "package a\n")
+	dir := testutil.InitRepo(t)
+	testutil.StageFile(t, dir, "a.go", "package a\n")
 
 	delta, contextID, _, err := Capture("")
 	if err != nil {
@@ -128,7 +76,7 @@ func TestCaptureEmptyIntent(t *testing.T) {
 }
 
 func TestCaptureNoStagedChanges(t *testing.T) {
-	initStateTestRepo(t)
+	testutil.InitRepo(t)
 
 	delta, contextID, _, err := Capture("nothing staged")
 	if err != nil {
@@ -143,8 +91,8 @@ func TestCaptureNoStagedChanges(t *testing.T) {
 }
 
 func TestCaptureContextIDBindsToContent(t *testing.T) {
-	dir := initStateTestRepo(t)
-	stageFile(t, dir, "a.go", "package a\n")
+	dir := testutil.InitRepo(t)
+	testutil.StageFile(t, dir, "a.go", "package a\n")
 
 	_, id1, _, err := Capture("first intent")
 	if err != nil {

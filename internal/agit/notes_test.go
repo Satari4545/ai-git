@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	gitwrap "github.com/Satari4545/ai-git/internal/git"
+
+	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
 // The product writes notes with `git notes --ref=agit add` (commit.go),
@@ -28,9 +30,9 @@ const testNoteJSON = `{
 }`
 
 func TestAgitNoteRefRoundTrip(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
-	head := commitFile(t, dir, "ref.go", "package x", "note me")
+	head := testutil.CommitFile(t, dir, "ref.go", "package x", "note me")
 	addAgitNote(t, dir, head, testNoteJSON)
 
 	// Read back exactly like checkout.go and contextlog.go do.
@@ -94,9 +96,9 @@ func decodeTestNote(raw string) (struct {
 }
 
 func TestAgitNoteMissing(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
-	head := commitFile(t, dir, "plain.go", "package x", "no note")
+	head := testutil.CommitFile(t, dir, "plain.go", "package x", "no note")
 
 	// Callers treat a missing note as "no context", not a failure.
 	raw, err := gitwrap.OutputQuiet("notes", "--ref=agit", "show", head)
@@ -109,9 +111,9 @@ func TestAgitNoteMissing(t *testing.T) {
 }
 
 func TestAgitNoteRefListsObject(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
-	head := commitFile(t, dir, "listed.go", "package x", "list me")
+	head := testutil.CommitFile(t, dir, "listed.go", "package x", "list me")
 	addAgitNote(t, dir, head, testNoteJSON)
 
 	out, err := gitwrap.OutputQuiet("notes", "--ref=agit", "list")

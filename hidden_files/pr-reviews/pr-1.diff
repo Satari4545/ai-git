@@ -1,0 +1,1175 @@
+diff --git a/internal/agit/agent_test.go b/internal/agit/agent_test.go
+new file mode 100644
+index 0000000..bf4c03c
+--- /dev/null
++++ b/internal/agit/agent_test.go
+@@ -0,0 +1,239 @@
++package agit
++
++import (
++	"os"
++	"path/filepath"
++	"reflect"
++	"testing"
++	"time"
++)
++
++func TestParseAgentContextJSONAliases(t *testing.T) {
++	raw := `{
++		"provider": "codex",
++		"intent": "legacy intent field",
++		"message": "legacy message field",
++		"files": ["a.go"],
++		"planned": "legacy planned",
++		"actual": "legacy actual",
++		"decisions": ["d1"],
++		"risks": ["r1"],
++		"nextSteps": ["n1"],
++		"taskID": "task-1"
++	}`
++
++	ctx, err := ParseAgentContextJSON([]byte(raw))
++	if err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++
++	if ctx.Provider != "codex" {
++		t.Errorf("Provider = %q", ctx.Provider)
++	}
++	if ctx.IntentSummary != "legacy intent field" {
++		t.Errorf("IntentSummary = %q (legacy alias not applied)", ctx.IntentSummary)
++	}
++	if ctx.CommitMessageSuggestion != "legacy message field" {
++		t.Errorf("CommitMessageSuggestion = %q (legacy alias not applied)", ctx.CommitMessageSuggestion)
++	}
++	if !reflect.DeepEqual(ctx.ActiveFiles, []string{"a.go"}) {
++		t.Errorf("ActiveFiles = %v (legacy alias not applied)", ctx.ActiveFiles)
++	}
++	if ctx.PlannedDelta != "legacy planned" || ctx.ActualDelta != "legacy actual" {
++		t.Errorf("PlannedDelta = %q, ActualDelta = %q", ctx.PlannedDelta, ctx.ActualDelta)
++	}
++	if ctx.TaskID != "task-1" {
++		t.Errorf("TaskID = %q", ctx.TaskID)
++	}
++	if ctx.CreatedAt == "" {
++		t.Error("CreatedAt was not stamped")
++	}
++}
++
++func TestParseAgentContextJSONPrefersCanonicalFields(t *testing.T) {
++	raw := `{
++		"intentSummary": "canonical",
++		"intent": "legacy",
++		"commitMessageSuggestion": "canonical msg",
++		"message": "legacy msg",
++		"activeFiles": ["b.go"],
++		"files": ["a.go"]
++	}`
++
++	ctx, err := ParseAgentContextJSON([]byte(raw))
++	if err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++	if ctx.IntentSummary != "canonical" {
++		t.Errorf("IntentSummary = %q, want canonical field to win", ctx.IntentSummary)
++	}
++	if ctx.CommitMessageSuggestion != "canonical msg" {
++		t.Errorf("CommitMessageSuggestion = %q, want canonical field to win", ctx.CommitMessageSuggestion)
++	}
++	if !reflect.DeepEqual(ctx.ActiveFiles, []string{"b.go"}) {
++		t.Errorf("ActiveFiles = %v, want canonical field to win", ctx.ActiveFiles)
++	}
++}
++
++func TestParseAgentContextJSONMissingIntent(t *testing.T) {
++	if _, err := ParseAgentContextJSON([]byte(`{"provider":"x"}`)); err == nil {
++		t.Error("expected error when intent is missing, got nil")
++	}
++}
++
++func TestParseAgentContextJSONInvalid(t *testing.T) {
++	if _, err := ParseAgentContextJSON([]byte(`{oops`)); err == nil {
++		t.Error("expected error for invalid JSON, got nil")
++	}
++}
++
++func TestAgentWriteRoundTrip(t *testing.T) {
++	initTestRepo(t)
++	t.Setenv("AGIT_MCP_SILENT", "1")
++
++	err := AgentWrite([]string{
++		"--provider", "codex",
++		"--intent", "add feature",
++		"--files", "a.go, b.go",
++		"--decisions", "d1, d2",
++		"--risks", "r1",
++		"--next-steps", "n1",
++		"--task-id", "t-9",
++	})
++	if err != nil {
++		t.Fatalf("AgentWrite failed: %v", err)
++	}
++
++	ctx, ok, err := LoadAgentContext()
++	if err != nil {
++		t.Fatalf("LoadAgentContext failed: %v", err)
++	}
++	if !ok {
++		t.Fatal("expected context to be present after AgentWrite")
++	}
++
++	if ctx.Provider != "codex" {
++		t.Errorf("Provider = %q", ctx.Provider)
++	}
++	if ctx.IntentSummary != "add feature" {
++		t.Errorf("IntentSummary = %q", ctx.IntentSummary)
++	}
++	// CommitMessageSuggestion defaults to the intent when --message is absent.
++	if ctx.CommitMessageSuggestion != "add feature" {
++		t.Errorf("CommitMessageSuggestion = %q, want intent default", ctx.CommitMessageSuggestion)
++	}
++	if !reflect.DeepEqual(ctx.ActiveFiles, []string{"a.go", "b.go"}) {
++		t.Errorf("ActiveFiles = %v", ctx.ActiveFiles)
++	}
++	if !reflect.DeepEqual(ctx.Decisions, []string{"d1", "d2"}) {
++		t.Errorf("Decisions = %v", ctx.Decisions)
++	}
++	if ctx.SchemaVersion != "agit.agent-context.v0" {
++		t.Errorf("SchemaVersion = %q", ctx.SchemaVersion)
++	}
++	if _, err := time.Parse(time.RFC3339, ctx.CreatedAt); err != nil {
++		t.Errorf("CreatedAt %q is not RFC3339: %v", ctx.CreatedAt, err)
++	}
++}
++
++func TestAgentWriteMissingIntent(t *testing.T) {
++	initTestRepo(t)
++	t.Setenv("AGIT_MCP_SILENT", "1")
++
++	if err := AgentWrite([]string{"--provider", "codex"}); err == nil {
++		t.Error("expected error when --intent is missing, got nil")
++	}
++}
++
++func TestAgentWriteUnknownFlag(t *testing.T) {
++	initTestRepo(t)
++
++	if err := AgentWrite([]string{"--intent", "x", "--bogus", "y"}); err == nil {
++		t.Error("expected error for unknown flag, got nil")
++	}
++}
++
++func TestAgentWriteMissingFlagValue(t *testing.T) {
++	initTestRepo(t)
++
++	if err := AgentWrite([]string{"--intent"}); err == nil {
++		t.Error("expected error when --intent has no value, got nil")
++	}
++}
++
++func TestLoadAgentContextMissing(t *testing.T) {
++	initTestRepo(t)
++
++	ctx, ok, err := LoadAgentContext()
++	if err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++	if ok || ctx != nil {
++		t.Errorf("expected (nil, false) for missing context, got (%v, %v)", ctx, ok)
++	}
++}
++
++func TestLoadAgentContextCorrupt(t *testing.T) {
++	initTestRepo(t)
++
++	if err := os.MkdirAll(filepath.Join(".agit", "state"), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(".agit", "state", "current.json"), []byte("{corrupt"), 0o644); err != nil {
++		t.Fatal(err)
++	}
++
++	_, ok, err := LoadAgentContext()
++	if err == nil {
++		t.Error("expected error for corrupt context file, got nil")
++	}
++	if !ok {
++		t.Error("expected ok=true when the file exists but is corrupt")
++	}
++}
++
++func TestSaveAgentContextDefaults(t *testing.T) {
++	initTestRepo(t)
++
++	ctx := &AgentContext{IntentSummary: "do thing"}
++	if err := SaveAgentContext(ctx); err != nil {
++		t.Fatalf("SaveAgentContext failed: %v", err)
++	}
++
++	loaded, ok, err := LoadAgentContext()
++	if err != nil || !ok {
++		t.Fatalf("LoadAgentContext after save: ok=%v err=%v", ok, err)
++	}
++	if loaded.Provider != "unknown-agent" {
++		t.Errorf("Provider = %q, want unknown-agent default", loaded.Provider)
++	}
++	if loaded.SchemaVersion != "agit.agent-context.v0" {
++		t.Errorf("SchemaVersion = %q", loaded.SchemaVersion)
++	}
++	if loaded.CommitMessageSuggestion != "do thing" {
++		t.Errorf("CommitMessageSuggestion = %q, want intent default", loaded.CommitMessageSuggestion)
++	}
++	if loaded.CreatedAt == "" {
++		t.Error("CreatedAt was not defaulted")
++	}
++}
++
++func TestSplitCSV(t *testing.T) {
++	got := splitCSV("a.go, b.go ,,c.go,")
++	want := []string{"a.go", "b.go", "c.go"}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("splitCSV = %v, want %v", got, want)
++	}
++	if got := splitCSV(""); len(got) != 0 {
++		t.Errorf("splitCSV(\"\") = %v, want empty", got)
++	}
++}
++
++func TestFirstNonEmpty(t *testing.T) {
++	if got := firstNonEmpty("", "", "c"); got != "c" {
++		t.Errorf("firstNonEmpty = %q, want c", got)
++	}
++	if got := firstNonEmpty("", ""); got != "" {
++		t.Errorf("firstNonEmpty = %q, want empty", got)
++	}
++}
+diff --git a/internal/agit/agit_test.go b/internal/agit/agit_test.go
+new file mode 100644
+index 0000000..f3799db
+--- /dev/null
++++ b/internal/agit/agit_test.go
+@@ -0,0 +1,85 @@
++package agit
++
++import (
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++)
++
++// initTestRepo creates an empty git repo in a temp dir and chdirs the test
++// process into it. Cleanup restores the original working directory.
++// Tests in this package must not use t.Parallel: they share the process cwd.
++func initTestRepo(t *testing.T) string {
++	t.Helper()
++
++	dir := t.TempDir()
++	runGit(t, dir, "init", "-q")
++	runGit(t, dir, "config", "user.email", "agit-test@example.com")
++	runGit(t, dir, "config", "user.name", "agit-test")
++
++	oldwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Chdir(dir); err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() {
++		if err := os.Chdir(oldwd); err != nil {
++			t.Fatal(err)
++		}
++	})
++
++	return dir
++}
++
++func runGit(t *testing.T, dir string, args ...string) string {
++	t.Helper()
++
++	cmd := exec.Command("git", args...)
++	cmd.Dir = dir
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("git %v failed: %v\n%s", args, err, out)
++	}
++	return string(out)
++}
++
++func writeFile(t *testing.T, path, content string) {
++	t.Helper()
++
++	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
++		t.Fatal(err)
++	}
++}
++
++// commitFile stages path with content and creates a commit, returning its SHA.
++func commitFile(t *testing.T, dir, path, content, message string) string {
++	t.Helper()
++
++	writeFile(t, filepath.Join(dir, path), content)
++	runGit(t, dir, "add", path)
++	runGit(t, dir, "commit", "-qm", message)
++	out := runGit(t, dir, "rev-parse", "HEAD")
++	// Trim trailing newline.
++	return out[:len(out)-1]
++}
++
++// addAgitNote attaches raw JSON as an AGIT note to the given commit,
++// using the exact ref the product reads and writes.
++func addAgitNote(t *testing.T, dir, commit, noteJSON string) {
++	t.Helper()
++
++	noteFile := filepath.Join(dir, ".agit-test-note.json")
++	if err := os.WriteFile(noteFile, []byte(noteJSON), 0o644); err != nil {
++		t.Fatal(err)
++	}
++	runGit(t, dir, "notes", "--ref=agit", "add", "-f", "-F", noteFile, commit)
++	if err := os.Remove(noteFile); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/internal/agit/checkout_test.go b/internal/agit/checkout_test.go
+new file mode 100644
+index 0000000..ff1d003
+--- /dev/null
++++ b/internal/agit/checkout_test.go
+@@ -0,0 +1,216 @@
++package agit
++
++import (
++	"encoding/json"
++	"os"
++	"path/filepath"
++	"reflect"
++	"strings"
++	"testing"
++)
++
++const testCheckoutNote = `{
++  "contextID": "ctx_sha256:checkout123",
++  "logicState": {
++    "schemaVersion": "agit.logic-delta.v0",
++    "agentThinking": {"intentSummary": "work on feature branch"},
++    "codeReality": {"activeFiles": ["feat.go"]}
++  }
++}`
++
++func TestStripCheckoutAgitArgs(t *testing.T) {
++	tests := []struct {
++		name         string
++		args         []string
++		wantGit      []string
++		wantOverride string
++	}{
++		{"feed override", []string{"--feed-context", "main"}, []string{"main"}, "enabled"},
++		{"no-feed override", []string{"--no-feed-context", "-q", "main"}, []string{"-q", "main"}, "disabled"},
++		{"passthrough untouched", []string{"-b", "new-branch"}, []string{"-b", "new-branch"}, ""},
++		{"empty", nil, []string{}, ""},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			gitArgs, override := stripCheckoutAgitArgs(tt.args)
++			if !reflect.DeepEqual(gitArgs, tt.wantGit) {
++				t.Errorf("gitArgs = %v, want %v", gitArgs, tt.wantGit)
++			}
++			if override != tt.wantOverride {
++				t.Errorf("override = %q, want %q", override, tt.wantOverride)
++			}
++		})
++	}
++}
++
++func TestShouldFeedCheckoutContextOverrides(t *testing.T) {
++	if ok, err := ShouldFeedCheckoutContext("enabled"); err != nil || !ok {
++		t.Errorf("override enabled: ok=%v err=%v, want true", ok, err)
++	}
++	if ok, err := ShouldFeedCheckoutContext("disabled"); err != nil || ok {
++		t.Errorf("override disabled: ok=%v err=%v, want false", ok, err)
++	}
++}
++
++func TestShouldFeedCheckoutContextConfigModes(t *testing.T) {
++	dir := initTestRepo(t)
++
++	runGit(t, dir, "config", "agit.checkoutFeed", "true")
++	if ok, err := ShouldFeedCheckoutContext(""); err != nil || !ok {
++		t.Errorf("config true: ok=%v err=%v, want true", ok, err)
++	}
++
++	runGit(t, dir, "config", "agit.checkoutFeed", "false")
++	if ok, err := ShouldFeedCheckoutContext(""); err != nil || ok {
++		t.Errorf("config false: ok=%v err=%v, want false", ok, err)
++	}
++}
++
++func TestCheckoutFeedModeMappings(t *testing.T) {
++	dir := initTestRepo(t)
++
++	tests := []struct {
++		value string
++		want  string
++	}{
++		{"true", "enabled"},
++		{"enable", "enabled"},
++		{"enabled", "enabled"},
++		{"false", "disabled"},
++		{"disable", "disabled"},
++		{"disabled", "disabled"},
++		{"prompt", "prompt"},
++		{"unexpected-value", "prompt"},
++	}
++
++	for _, tt := range tests {
++		runGit(t, dir, "config", "agit.checkoutFeed", tt.value)
++		if got := CheckoutFeedMode(); got != tt.want {
++			t.Errorf("CheckoutFeedMode(%q) = %q, want %q", tt.value, got, tt.want)
++		}
++	}
++
++	runGit(t, dir, "config", "--unset", "agit.checkoutFeed")
++	if got := CheckoutFeedMode(); got != "prompt" {
++		t.Errorf("CheckoutFeedMode(unset) = %q, want prompt", got)
++	}
++}
++
++func TestRestoreHEADContextWithNote(t *testing.T) {
++	dir := initTestRepo(t)
++
++	head := commitFile(t, dir, "feat.go", "package x", "feature work")
++	addAgitNote(t, dir, head, testCheckoutNote)
++
++	restored, err := RestoreHEADContext()
++	if err != nil {
++		t.Fatalf("RestoreHEADContext failed: %v", err)
++	}
++	if !restored {
++		t.Fatal("expected restored=true when HEAD has a note")
++	}
++
++	raw, err := os.ReadFile(filepath.Join(".agit", "state", "checkout.json"))
++	if err != nil {
++		t.Fatalf("checkout.json was not written: %v", err)
++	}
++
++	var envelope RestoredCheckoutContext
++	if err := json.Unmarshal(raw, &envelope); err != nil {
++		t.Fatalf("checkout.json is not valid JSON: %v", err)
++	}
++	if envelope.SchemaVersion != "agit.checkout-context.v0" {
++		t.Errorf("SchemaVersion = %q", envelope.SchemaVersion)
++	}
++	if envelope.Commit != head {
++		t.Errorf("Commit = %q, want HEAD %q", envelope.Commit, head)
++	}
++	if envelope.RestoredAt == "" {
++		t.Error("RestoredAt was not stamped")
++	}
++	if !strings.Contains(string(envelope.Note), "ctx_sha256:checkout123") {
++		t.Errorf("Note does not contain the original context ID: %s", envelope.Note)
++	}
++}
++
++func TestRestoreHEADContextNoNote(t *testing.T) {
++	dir := initTestRepo(t)
++	commitFile(t, dir, "plain.go", "package x", "no note here")
++
++	restored, err := RestoreHEADContext()
++	if err != nil {
++		t.Fatalf("unexpected error: %v", err)
++	}
++	if restored {
++		t.Error("expected restored=false when HEAD has no note")
++	}
++	if _, err := os.Stat(filepath.Join(".agit", "state", "checkout.json")); !os.IsNotExist(err) {
++		t.Error("checkout.json should not exist when nothing was restored")
++	}
++}
++
++func TestRestoreHEADContextInvalidNote(t *testing.T) {
++	dir := initTestRepo(t)
++
++	head := commitFile(t, dir, "bad.go", "package x", "bad note")
++	addAgitNote(t, dir, head, "{not valid json")
++
++	_, err := RestoreHEADContext()
++	if err == nil || !strings.Contains(err.Error(), "invalid AGIT note") {
++		t.Errorf("expected invalid-note error, got: %v", err)
++	}
++}
++
++func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
++	dir := initTestRepo(t)
++	t.Setenv("AGIT_MCP_SILENT", "1")
++
++	head := commitFile(t, dir, "feat.go", "package x", "feature work")
++	addAgitNote(t, dir, head, testCheckoutNote)
++
++	runGit(t, dir, "checkout", "-qb", "other")
++	commitFile(t, dir, "other.go", "package x", "other work")
++
++	// --no-feed-context avoids the interactive prompt and the Codex feed.
++	if err := Checkout([]string{"--no-feed-context", "-q", "-"}); err != nil {
++		t.Fatalf("Checkout failed: %v", err)
++	}
++
++	raw, ok, err := LoadCheckoutContextRaw()
++	if err != nil || !ok {
++		t.Fatalf("expected checkout context after Checkout, ok=%v err=%v", ok, err)
++	}
++	var envelope RestoredCheckoutContext
++	if err := json.Unmarshal(raw, &envelope); err != nil {
++		t.Fatalf("checkout.json invalid: %v", err)
++	}
++	if envelope.Commit != head {
++		t.Errorf("restored commit = %q, want %q", envelope.Commit, head)
++	}
++}
++
++func TestCheckoutWithoutNoteWritesNothing(t *testing.T) {
++	dir := initTestRepo(t)
++
++	commitFile(t, dir, "a.go", "package x", "first")
++	runGit(t, dir, "checkout", "-qb", "second")
++	commitFile(t, dir, "b.go", "package x", "second")
++
++	if err := Checkout([]string{"--no-feed-context", "-q", "second"}); err != nil {
++		t.Fatalf("Checkout failed: %v", err)
++	}
++
++	if _, err := os.Stat(filepath.Join(".agit", "state", "checkout.json")); !os.IsNotExist(err) {
++		t.Error("checkout.json should not exist when HEAD has no note")
++	}
++}
++
++func TestLoadCheckoutContextRawMissing(t *testing.T) {
++	initTestRepo(t)
++
++	raw, ok, err := LoadCheckoutContextRaw()
++	if err != nil || ok || raw != nil {
++		t.Errorf("expected (nil, false, nil), got (%v, %v, %v)", raw, ok, err)
++	}
++}
+diff --git a/internal/agit/commit_test.go b/internal/agit/commit_test.go
+new file mode 100644
+index 0000000..5da1beb
+--- /dev/null
++++ b/internal/agit/commit_test.go
+@@ -0,0 +1,181 @@
++package agit
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestExtractIntent(t *testing.T) {
++	t.Setenv("AGIT_INTENT", "from-env")
++
++	tests := []struct {
++		name string
++		args []string
++		want string
++	}{
++		{"space form", []string{"--intent", "from-flag"}, "from-flag"},
++		{"equals form", []string{"--intent=from-equals"}, "from-equals"},
++		{"flag beats env", []string{"--intent", "flag-wins"}, "flag-wins"},
++		{"falls back to env", []string{"-m", "msg"}, "from-env"},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			if got := extractIntent(tt.args); got != tt.want {
++				t.Errorf("extractIntent(%v) = %q, want %q", tt.args, got, tt.want)
++			}
++		})
++	}
++
++	t.Run("empty without env", func(t *testing.T) {
++		t.Setenv("AGIT_INTENT", "")
++		if got := extractIntent(nil); got != "" {
++			t.Errorf("extractIntent(nil) = %q, want empty", got)
++		}
++	})
++}
++
++func TestStripAgitArgs(t *testing.T) {
++	tests := []struct {
++		name string
++		args []string
++		want []string
++	}{
++		{
++			"removes intent pair and quiet",
++			[]string{"-m", "msg", "--intent", "summarize", "--quiet"},
++			[]string{"-m", "msg"},
++		},
++		{
++			"removes equals form and passthrough flags",
++			[]string{"--intent=x", "--allow-stale-context", "--allow-missing-context", "--no-agent-context", "HEAD"},
++			[]string{"HEAD"},
++		},
++		{
++			"keeps git args untouched",
++			[]string{"-m", "msg", "--amend"},
++			[]string{"-m", "msg", "--amend"},
++		},
++		{
++			"dangling intent consumes nothing else",
++			[]string{"--intent"},
++			[]string{},
++		},
++	}
++
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			if got := stripAgitArgs(tt.args); !reflect.DeepEqual(got, tt.want) {
++				t.Errorf("stripAgitArgs(%v) = %v, want %v", tt.args, got, tt.want)
++			}
++		})
++	}
++}
++
++func TestHasCommitMessage(t *testing.T) {
++	tests := []struct {
++		args []string
++		want bool
++	}{
++		{[]string{"-m", "msg"}, true},
++		{[]string{"--message", "msg"}, true},
++		{[]string{"-mmsg"}, true},
++		{[]string{"--message=msg"}, true},
++		{[]string{"-m"}, false},        // flag without value
++		{[]string{"--message"}, false}, // flag without value
++		{[]string{"--amend"}, false},   // similar prefix, not a message
++		{nil, false},
++	}
++
++	for _, tt := range tests {
++		if got := hasCommitMessage(tt.args); got != tt.want {
++			t.Errorf("hasCommitMessage(%v) = %v, want %v", tt.args, got, tt.want)
++		}
++	}
++}
++
++func TestHasCommitMessageFile(t *testing.T) {
++	tests := []struct {
++		args []string
++		want bool
++	}{
++		{[]string{"-F", "file"}, true},
++		{[]string{"--file", "file"}, true},
++		{[]string{"-Ffile"}, true},
++		{[]string{"--file=file"}, true},
++		{[]string{"-F"}, false},
++		{nil, false},
++	}
++
++	for _, tt := range tests {
++		if got := hasCommitMessageFile(tt.args); got != tt.want {
++			t.Errorf("hasCommitMessageFile(%v) = %v, want %v", tt.args, got, tt.want)
++		}
++	}
++}
++
++func TestAppendContextIDTrailer(t *testing.T) {
++	const id = "ctx_sha256:deadbeef"
++
++	t.Run("appends when message present", func(t *testing.T) {
++		args, included := appendContextIDTrailer([]string{"-m", "msg"}, id)
++		if !included {
++			t.Fatal("expected trailer to be included")
++		}
++		want := []string{"-m", "msg", "-m", "Agit-Context-ID: " + id}
++		if !reflect.DeepEqual(args, want) {
++			t.Errorf("args = %v, want %v", args, want)
++		}
++	})
++
++	t.Run("skips without message", func(t *testing.T) {
++		args, included := appendContextIDTrailer([]string{"--amend"}, id)
++		if included || !reflect.DeepEqual(args, []string{"--amend"}) {
++			t.Errorf("args = %v, included = %v; want unchanged and false", args, included)
++		}
++	})
++
++	t.Run("skips with empty id", func(t *testing.T) {
++		args, included := appendContextIDTrailer([]string{"-m", "msg"}, "")
++		if included || !reflect.DeepEqual(args, []string{"-m", "msg"}) {
++			t.Errorf("args = %v, included = %v; want unchanged and false", args, included)
++		}
++	})
++
++	t.Run("skips when message comes from file", func(t *testing.T) {
++		args, included := appendContextIDTrailer([]string{"-F", "msg.txt"}, id)
++		if included || !reflect.DeepEqual(args, []string{"-F", "msg.txt"}) {
++			t.Errorf("args = %v, included = %v; want unchanged and false", args, included)
++		}
++	})
++}
++
++func TestExtractCommitMessage(t *testing.T) {
++	tests := []struct {
++		args []string
++		want string
++	}{
++		{[]string{"-m", "hello"}, "hello"},
++		{[]string{"--message", "hi"}, "hi"},
++		{[]string{"-mhi"}, "hi"},
++		{[]string{"--message=yo"}, "yo"},
++		{[]string{"--amend"}, ""},
++		{nil, ""},
++	}
++
++	for _, tt := range tests {
++		if got := extractCommitMessage(tt.args); got != tt.want {
++			t.Errorf("extractCommitMessage(%v) = %q, want %q", tt.args, got, tt.want)
++		}
++	}
++}
++
++func TestHasAgitFlag(t *testing.T) {
++	args := []string{"commit", "--quiet", "-m", "x"}
++	if !hasAgitFlag(args, "--quiet") {
++		t.Error("expected --quiet to be found")
++	}
++	if hasAgitFlag(args, "--intent") {
++		t.Error("expected --intent to be absent")
++	}
++}
+diff --git a/internal/agit/config_test.go b/internal/agit/config_test.go
+new file mode 100644
+index 0000000..ecc9deb
+--- /dev/null
++++ b/internal/agit/config_test.go
+@@ -0,0 +1,86 @@
++package agit
++
++import (
++	"testing"
++
++	gitwrap "github.com/Satari4545/ai-git/internal/git"
++)
++
++func agitConfigValue(t *testing.T, key string) string {
++	t.Helper()
++
++	value, err := gitwrap.OutputQuiet("config", "--get", key)
++	if err != nil {
++		t.Fatalf("git config --get %s failed: %v", key, err)
++	}
++	return value
++}
++
++func TestConfigCheckoutFeedRoundTrip(t *testing.T) {
++	initTestRepo(t)
++
++	for _, tc := range []struct {
++		arg      string
++		stored   string
++		modeWant string
++	}{
++		{"enable", "true", "enabled"},
++		{"disable", "false", "disabled"},
++		{"prompt", "prompt", "prompt"},
++	} {
++		if err := Config([]string{"checkout-feed", tc.arg}); err != nil {
++			t.Fatalf("Config(checkout-feed %s) failed: %v", tc.arg, err)
++		}
++		if got := agitConfigValue(t, "agit.checkoutFeed"); got != tc.stored {
++			t.Errorf("checkout-feed %s stored %q, want %q", tc.arg, got, tc.stored)
++		}
++		if got := CheckoutFeedMode(); got != tc.modeWant {
++			t.Errorf("checkout-feed %s: mode = %q, want %q", tc.arg, got, tc.modeWant)
++		}
++	}
++}
++
++func TestConfigContextProviderRoundTrip(t *testing.T) {
++	initTestRepo(t)
++
++	if err := Config([]string{"context-provider", "set", "my-provider --json"}); err != nil {
++		t.Fatalf("set failed: %v", err)
++	}
++	if got := agitConfigValue(t, "agit.contextCommand"); got != "my-provider --json" {
++		t.Errorf("stored provider = %q", got)
++	}
++
++	if err := Config([]string{"context-provider", "get"}); err != nil {
++		t.Fatalf("get failed: %v", err)
++	}
++
++	if err := Config([]string{"context-provider", "unset"}); err != nil {
++		t.Fatalf("unset failed: %v", err)
++	}
++	if _, err := gitwrap.OutputQuiet("config", "--get", "agit.contextCommand"); err == nil {
++		t.Error("expected agit.contextCommand to be unset")
++	}
++}
++
++func TestConfigContextTimeout(t *testing.T) {
++	initTestRepo(t)
++
++	if err := Config([]string{"context-timeout", "42"}); err != nil {
++		t.Fatalf("Config(context-timeout) failed: %v", err)
++	}
++	if got := agitConfigValue(t, "agit.contextTimeoutSec"); got != "42" {
++		t.Errorf("stored timeout = %q, want 42", got)
++	}
++}
++
++func TestConfigUnknownArgsShowsUsage(t *testing.T) {
++	initTestRepo(t)
++
++	// Unknown invocations print usage and return nil (no error).
++	if err := Config([]string{"bogus"}); err != nil {
++		t.Errorf("expected nil error for unknown config args, got %v", err)
++	}
++	if err := Config(nil); err != nil {
++		t.Errorf("expected nil error for empty config args, got %v", err)
++	}
++}
+diff --git a/internal/agit/notes_test.go b/internal/agit/notes_test.go
+new file mode 100644
+index 0000000..409b57c
+--- /dev/null
++++ b/internal/agit/notes_test.go
+@@ -0,0 +1,124 @@
++package agit
++
++import (
++	"encoding/json"
++	"testing"
++
++	gitwrap "github.com/Satari4545/ai-git/internal/git"
++)
++
++// The product writes notes with `git notes --ref=agit add` (commit.go),
++// reads them with `git notes --ref=agit show` (checkout.go, contextlog.go),
++// and pushes them via the notes ref (push.go). These tests lock the shared
++// ref convention: a note written the way commit writes it must be readable
++// the way every reader reads it.
++
++const testNoteJSON = `{
++  "contextID": "ctx_sha256:noteref123",
++  "logicState": {
++    "schemaVersion": "agit.logic-delta.v0",
++    "agentThinking": {"intentSummary": "ref round trip"},
++    "codeReality": {"activeFiles": ["ref.go"]}
++  },
++  "agentContext": {
++    "provider": "codex",
++    "intentSummary": "ref round trip",
++    "decisions": ["keep one ref"]
++  }
++}`
++
++func TestAgitNoteRefRoundTrip(t *testing.T) {
++	dir := initTestRepo(t)
++
++	head := commitFile(t, dir, "ref.go", "package x", "note me")
++	addAgitNote(t, dir, head, testNoteJSON)
++
++	// Read back exactly like checkout.go and contextlog.go do.
++	raw, err := gitwrap.OutputQuiet("notes", "--ref=agit", "show", head)
++	if err != nil {
++		t.Fatalf("reading note failed: %v", err)
++	}
++	if raw == "" {
++		t.Fatal("expected note content, got empty")
++	}
++
++	summary, err := decodeTestNote(raw)
++	if err != nil {
++		t.Fatalf("decoding round-tripped note failed: %v", err)
++	}
++	if summary.ContextID != "ctx_sha256:noteref123" {
++		t.Errorf("ContextID = %q", summary.ContextID)
++	}
++	if summary.Intent != "ref round trip" {
++		t.Errorf("Intent = %q", summary.Intent)
++	}
++	if summary.Provider != "codex" {
++		t.Errorf("Provider = %q", summary.Provider)
++	}
++}
++
++// decodeTestNote extracts the fields these tests assert on without depending
++// on feature code: it mirrors just enough of the note schema.
++func decodeTestNote(raw string) (struct {
++	ContextID string
++	Intent    string
++	Provider  string
++}, error) {
++	var note struct {
++		ContextID string `json:"contextID"`
++		Logic     *struct {
++			Thinking *struct {
++				Intent string `json:"intentSummary"`
++			} `json:"agentThinking"`
++		} `json:"logicState"`
++		Agent *struct {
++			Provider string `json:"provider"`
++		} `json:"agentContext"`
++	}
++	out := struct {
++		ContextID string
++		Intent    string
++		Provider  string
++	}{}
++	if err := json.Unmarshal([]byte(raw), &note); err != nil {
++		return out, err
++	}
++	out.ContextID = note.ContextID
++	if note.Logic != nil && note.Logic.Thinking != nil {
++		out.Intent = note.Logic.Thinking.Intent
++	}
++	if note.Agent != nil {
++		out.Provider = note.Agent.Provider
++	}
++	return out, nil
++}
++
++func TestAgitNoteMissing(t *testing.T) {
++	dir := initTestRepo(t)
++
++	head := commitFile(t, dir, "plain.go", "package x", "no note")
++
++	// Callers treat a missing note as "no context", not a failure.
++	raw, err := gitwrap.OutputQuiet("notes", "--ref=agit", "show", head)
++	if err == nil {
++		t.Error("expected error for missing note, got nil")
++	}
++	if raw != "" {
++		t.Errorf("expected empty output for missing note, got %q", raw)
++	}
++}
++
++func TestAgitNoteRefListsObject(t *testing.T) {
++	dir := initTestRepo(t)
++
++	head := commitFile(t, dir, "listed.go", "package x", "list me")
++	addAgitNote(t, dir, head, testNoteJSON)
++
++	out, err := gitwrap.OutputQuiet("notes", "--ref=agit", "list")
++	if err != nil {
++		t.Fatalf("notes list failed: %v", err)
++	}
++	if out == "" {
++		t.Error("expected notes list to contain the annotated commit")
++	}
++}
+diff --git a/internal/state/state.go b/internal/state/state.go
+index 7243968..2b55249 100644
+--- a/internal/state/state.go
++++ b/internal/state/state.go
+@@ -17,7 +17,7 @@ type LogicDelta struct {
+ 	MCP MCPContext `json:"mcp"`
+ 
+ 	AgentThinking AgentThinking `json:"agentThinking"`
+-	CodeReality    CodeReality   `json:"codeReality"`
++	CodeReality   CodeReality   `json:"codeReality"`
+ 
+ 	CreatedAt string `json:"createdAt"`
+ }
+@@ -73,7 +73,7 @@ func Capture(intent string) (*LogicDelta, string, []byte, error) {
+ 		Kind:          "logic_delta",
+ 		MCP: MCPContext{
+ 			SystemPrompt: prompt,
+-			Resources: mapFilesToResources(files),
++			Resources:    mapFilesToResources(files),
+ 		},
+ 		AgentThinking: AgentThinking{
+ 			IntentSummary: intent,
+@@ -121,4 +121,4 @@ func gitLines(args ...string) ([]string, error) {
+ 		return []string{}, err
+ 	}
+ 	return strings.Split(txt, "\n"), err
+-}
+\ No newline at end of file
++}
+diff --git a/internal/state/state_test.go b/internal/state/state_test.go
+new file mode 100644
+index 0000000..1f308ff
+--- /dev/null
++++ b/internal/state/state_test.go
+@@ -0,0 +1,173 @@
++package state
++
++import (
++	"encoding/json"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"regexp"
++	"strings"
++	"testing"
++	"time"
++)
++
++func initStateTestRepo(t *testing.T) string {
++	t.Helper()
++
++	dir := t.TempDir()
++
++	run := func(args ...string) {
++		t.Helper()
++		cmd := exec.Command("git", args...)
++		cmd.Dir = dir
++		if out, err := cmd.CombinedOutput(); err != nil {
++			t.Fatalf("git %v failed: %v\n%s", args, err, out)
++		}
++	}
++
++	run("init", "-q")
++	run("config", "user.email", "agit-test@example.com")
++	run("config", "user.name", "agit-test")
++
++	oldwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Chdir(dir); err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() {
++		if err := os.Chdir(oldwd); err != nil {
++			t.Fatal(err)
++		}
++	})
++
++	return dir
++}
++
++func stageFile(t *testing.T, dir, path, content string) {
++	t.Helper()
++
++	full := filepath.Join(dir, path)
++	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
++		t.Fatal(err)
++	}
++	cmd := exec.Command("git", "add", path)
++	cmd.Dir = dir
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("git add failed: %v\n%s", err, out)
++	}
++}
++
++var contextIDPattern = regexp.MustCompile(`^ctx_sha256:[0-9a-f]{64}$`)
++
++func TestCaptureWithStagedChanges(t *testing.T) {
++	dir := initStateTestRepo(t)
++	stageFile(t, dir, "feat/new.go", "package feat\n")
++	stageFile(t, dir, "README.md", "# docs\n")
++
++	delta, contextID, raw, err := Capture("implement feature")
++	if err != nil {
++		t.Fatalf("Capture failed: %v", err)
++	}
++
++	if delta.AgentThinking.IntentSummary != "implement feature" {
++		t.Errorf("IntentSummary = %q", delta.AgentThinking.IntentSummary)
++	}
++	for _, want := range []string{"feat/new.go", "README.md"} {
++		found := false
++		for _, f := range delta.CodeReality.ActiveFiles {
++			if f == want {
++				found = true
++			}
++		}
++		if !found {
++			t.Errorf("ActiveFiles = %v, missing %q", delta.CodeReality.ActiveFiles, want)
++		}
++	}
++	if delta.CodeReality.DiffStat == "" {
++		t.Error("expected DiffStat to be populated for staged changes")
++	}
++	if delta.SchemaVersion != "agit.logic-delta.v0" {
++		t.Errorf("SchemaVersion = %q", delta.SchemaVersion)
++	}
++	if delta.Kind != "logic_delta" {
++		t.Errorf("Kind = %q", delta.Kind)
++	}
++	if !contextIDPattern.MatchString(contextID) {
++		t.Errorf("contextID %q does not match ctx_sha256:<64 hex>", contextID)
++	}
++
++	// The raw payload must be self-consistent JSON carrying the same ID.
++	var decoded map[string]any
++	if err := json.Unmarshal(raw, &decoded); err != nil {
++		t.Fatalf("raw payload is not valid JSON: %v", err)
++	}
++	if _, err := time.Parse(time.RFC3339, delta.CreatedAt); err != nil {
++		t.Errorf("CreatedAt %q is not RFC3339: %v", delta.CreatedAt, err)
++	}
++}
++
++func TestCaptureEmptyIntent(t *testing.T) {
++	dir := initStateTestRepo(t)
++	stageFile(t, dir, "a.go", "package a\n")
++
++	delta, contextID, _, err := Capture("")
++	if err != nil {
++		t.Fatalf("Capture failed: %v", err)
++	}
++	if !strings.Contains(delta.AgentThinking.IntentSummary, "No intent summary") {
++		t.Errorf("expected default intent message, got %q", delta.AgentThinking.IntentSummary)
++	}
++	if !contextIDPattern.MatchString(contextID) {
++		t.Errorf("contextID %q has wrong format", contextID)
++	}
++}
++
++func TestCaptureNoStagedChanges(t *testing.T) {
++	initStateTestRepo(t)
++
++	delta, contextID, _, err := Capture("nothing staged")
++	if err != nil {
++		t.Fatalf("Capture failed: %v", err)
++	}
++	if len(delta.CodeReality.ActiveFiles) != 0 {
++		t.Errorf("ActiveFiles = %v, want empty", delta.CodeReality.ActiveFiles)
++	}
++	if !contextIDPattern.MatchString(contextID) {
++		t.Errorf("contextID %q has wrong format", contextID)
++	}
++}
++
++func TestCaptureContextIDBindsToContent(t *testing.T) {
++	dir := initStateTestRepo(t)
++	stageFile(t, dir, "a.go", "package a\n")
++
++	_, id1, _, err := Capture("first intent")
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, id2, _, err := Capture("second intent")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if id1 == id2 {
++		t.Error("different intents produced the same context ID; the ID must bind to content")
++	}
++}
++
++func TestMapFilesToResources(t *testing.T) {
++	res := mapFilesToResources([]string{"a.go", "dir/b.go"})
++	if len(res) != 2 {
++		t.Fatalf("got %d resources, want 2", len(res))
++	}
++	if res[0].URI != "file://a.go" || res[0].Name != "a.go" {
++		t.Errorf("unexpected resource: %+v", res[0])
++	}
++	if got := mapFilesToResources(nil); len(got) != 0 {
++		t.Errorf("expected empty resources for nil, got %v", got)
++	}
++}

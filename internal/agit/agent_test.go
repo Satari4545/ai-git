@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
 func TestParseAgentContextJSONAliases(t *testing.T) {
@@ -88,7 +90,7 @@ func TestParseAgentContextJSONInvalid(t *testing.T) {
 }
 
 func TestAgentWriteRoundTrip(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 	t.Setenv("AGIT_MCP_SILENT", "1")
 
 	err := AgentWrite([]string{
@@ -137,7 +139,7 @@ func TestAgentWriteRoundTrip(t *testing.T) {
 }
 
 func TestAgentWriteMissingIntent(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 	t.Setenv("AGIT_MCP_SILENT", "1")
 
 	if err := AgentWrite([]string{"--provider", "codex"}); err == nil {
@@ -146,7 +148,7 @@ func TestAgentWriteMissingIntent(t *testing.T) {
 }
 
 func TestAgentWriteUnknownFlag(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	if err := AgentWrite([]string{"--intent", "x", "--bogus", "y"}); err == nil {
 		t.Error("expected error for unknown flag, got nil")
@@ -154,7 +156,7 @@ func TestAgentWriteUnknownFlag(t *testing.T) {
 }
 
 func TestAgentWriteMissingFlagValue(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	if err := AgentWrite([]string{"--intent"}); err == nil {
 		t.Error("expected error when --intent has no value, got nil")
@@ -162,7 +164,7 @@ func TestAgentWriteMissingFlagValue(t *testing.T) {
 }
 
 func TestLoadAgentContextMissing(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	ctx, ok, err := LoadAgentContext()
 	if err != nil {
@@ -174,7 +176,7 @@ func TestLoadAgentContextMissing(t *testing.T) {
 }
 
 func TestLoadAgentContextCorrupt(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	if err := os.MkdirAll(filepath.Join(".agit", "state"), 0o755); err != nil {
 		t.Fatal(err)
@@ -193,7 +195,7 @@ func TestLoadAgentContextCorrupt(t *testing.T) {
 }
 
 func TestSaveAgentContextDefaults(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	ctx := &AgentContext{IntentSummary: "do thing"}
 	if err := SaveAgentContext(ctx); err != nil {

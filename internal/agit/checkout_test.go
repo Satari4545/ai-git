@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
 const testCheckoutNote = `{
@@ -54,21 +56,21 @@ func TestShouldFeedCheckoutContextOverrides(t *testing.T) {
 }
 
 func TestShouldFeedCheckoutContextConfigModes(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
-	runGit(t, dir, "config", "agit.checkoutFeed", "true")
+	testutil.RunGit(t, dir, "config", "agit.checkoutFeed", "true")
 	if ok, err := ShouldFeedCheckoutContext(""); err != nil || !ok {
 		t.Errorf("config true: ok=%v err=%v, want true", ok, err)
 	}
 
-	runGit(t, dir, "config", "agit.checkoutFeed", "false")
+	testutil.RunGit(t, dir, "config", "agit.checkoutFeed", "false")
 	if ok, err := ShouldFeedCheckoutContext(""); err != nil || ok {
 		t.Errorf("config false: ok=%v err=%v, want false", ok, err)
 	}
 }
 
 func TestCheckoutFeedModeMappings(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
 	tests := []struct {
 		value string
@@ -85,22 +87,22 @@ func TestCheckoutFeedModeMappings(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		runGit(t, dir, "config", "agit.checkoutFeed", tt.value)
+		testutil.RunGit(t, dir, "config", "agit.checkoutFeed", tt.value)
 		if got := CheckoutFeedMode(); got != tt.want {
 			t.Errorf("CheckoutFeedMode(%q) = %q, want %q", tt.value, got, tt.want)
 		}
 	}
 
-	runGit(t, dir, "config", "--unset", "agit.checkoutFeed")
+	testutil.RunGit(t, dir, "config", "--unset", "agit.checkoutFeed")
 	if got := CheckoutFeedMode(); got != "prompt" {
 		t.Errorf("CheckoutFeedMode(unset) = %q, want prompt", got)
 	}
 }
 
 func TestRestoreHEADContextWithNote(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
-	head := commitFile(t, dir, "feat.go", "package x", "feature work")
+	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
 	addAgitNote(t, dir, head, testCheckoutNote)
 
 	restored, err := RestoreHEADContext()
@@ -135,8 +137,8 @@ func TestRestoreHEADContextWithNote(t *testing.T) {
 }
 
 func TestRestoreHEADContextNoNote(t *testing.T) {
-	dir := initTestRepo(t)
-	commitFile(t, dir, "plain.go", "package x", "no note here")
+	dir := testutil.InitRepo(t)
+	testutil.CommitFile(t, dir, "plain.go", "package x", "no note here")
 
 	restored, err := RestoreHEADContext()
 	if err != nil {
@@ -151,9 +153,9 @@ func TestRestoreHEADContextNoNote(t *testing.T) {
 }
 
 func TestRestoreHEADContextInvalidNote(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
-	head := commitFile(t, dir, "bad.go", "package x", "bad note")
+	head := testutil.CommitFile(t, dir, "bad.go", "package x", "bad note")
 	addAgitNote(t, dir, head, "{not valid json")
 
 	_, err := RestoreHEADContext()
@@ -163,14 +165,14 @@ func TestRestoreHEADContextInvalidNote(t *testing.T) {
 }
 
 func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 	t.Setenv("AGIT_MCP_SILENT", "1")
 
-	head := commitFile(t, dir, "feat.go", "package x", "feature work")
+	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
 	addAgitNote(t, dir, head, testCheckoutNote)
 
-	runGit(t, dir, "checkout", "-qb", "other")
-	commitFile(t, dir, "other.go", "package x", "other work")
+	testutil.RunGit(t, dir, "checkout", "-qb", "other")
+	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
 
 	// --no-feed-context avoids the interactive prompt and the Codex feed.
 	if err := Checkout([]string{"--no-feed-context", "-q", "-"}); err != nil {
@@ -191,11 +193,11 @@ func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 }
 
 func TestCheckoutWithoutNoteWritesNothing(t *testing.T) {
-	dir := initTestRepo(t)
+	dir := testutil.InitRepo(t)
 
-	commitFile(t, dir, "a.go", "package x", "first")
-	runGit(t, dir, "checkout", "-qb", "second")
-	commitFile(t, dir, "b.go", "package x", "second")
+	testutil.CommitFile(t, dir, "a.go", "package x", "first")
+	testutil.RunGit(t, dir, "checkout", "-qb", "second")
+	testutil.CommitFile(t, dir, "b.go", "package x", "second")
 
 	if err := Checkout([]string{"--no-feed-context", "-q", "second"}); err != nil {
 		t.Fatalf("Checkout failed: %v", err)
@@ -207,7 +209,7 @@ func TestCheckoutWithoutNoteWritesNothing(t *testing.T) {
 }
 
 func TestLoadCheckoutContextRawMissing(t *testing.T) {
-	initTestRepo(t)
+	testutil.InitRepo(t)
 
 	raw, ok, err := LoadCheckoutContextRaw()
 	if err != nil || ok || raw != nil {
