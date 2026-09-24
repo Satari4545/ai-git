@@ -76,7 +76,8 @@ func ActiveBridge() (AgentBridge, error) {
 
 const bridgeUsage = `usage: agit bridge list
        agit bridge <agent> install|provider|feed
-       agit bridge codex session set <id>|get|unset`
+       agit bridge codex session set <id>|get|unset
+       agit bridge claude-code hook`
 
 // Bridge implements `agit bridge`: generic verbs dispatch through the
 // registry, while agent-specific verbs (codex session) keep working.
@@ -98,6 +99,11 @@ func Bridge(args []string) error {
 	// Codex session management predates the registry; keep it working.
 	if name == "codex" && len(args) > 1 && args[1] == "session" {
 		return codexBridgeSession(args[2:])
+	}
+
+	// The Claude Code SessionStart hook entry point.
+	if name == "claude-code" && len(args) > 1 && args[1] == "hook" {
+		return claudeCodeHook()
 	}
 
 	b, err := GetBridge(name)
