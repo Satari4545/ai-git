@@ -17,7 +17,7 @@ type LogicDelta struct {
 	MCP MCPContext `json:"mcp"`
 
 	AgentThinking AgentThinking `json:"agentThinking"`
-	CodeReality    CodeReality   `json:"codeReality"`
+	CodeReality   CodeReality   `json:"codeReality"`
 
 	CreatedAt string `json:"createdAt"`
 }
@@ -73,7 +73,7 @@ func Capture(intent string) (*LogicDelta, string, []byte, error) {
 		Kind:          "logic_delta",
 		MCP: MCPContext{
 			SystemPrompt: prompt,
-			Resources: mapFilesToResources(files),
+			Resources:    mapFilesToResources(files),
 		},
 		AgentThinking: AgentThinking{
 			IntentSummary: intent,
