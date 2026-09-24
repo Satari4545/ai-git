@@ -85,6 +85,22 @@ agit config context-provider set "your-agent-context-command"
 agit config context-timeout 60
 ```
 
+Agent bridges are pluggable. List them and install one:
+
+```sh
+agit bridge list
+agit bridge codex install
+```
+
+Installing a bridge sets `agit.contextCommand` (used by `agit commit` to ask
+the agent for fresh context JSON) and selects it via `git config agit.bridge`.
+Checkout handoff (`agit checkout --feed-context`) feeds the restored context
+through the active bridge. To switch agents:
+
+```sh
+git config agit.bridge <agent>
+```
+
 Configure the Codex bridge:
 
 ```sh

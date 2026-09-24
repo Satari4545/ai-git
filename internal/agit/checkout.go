@@ -39,7 +39,7 @@ func Checkout(args []string) error {
 			return err
 		}
 		if shouldFeed {
-			if err := FeedCodexCheckoutContext(); err != nil {
+			if err := feedCheckoutContext(); err != nil {
 				return err
 			}
 		}
@@ -87,7 +87,11 @@ func ShouldFeedCheckoutContext(feedOverride string) (bool, error) {
 }
 
 func promptForCheckoutFeed() (bool, error) {
-	fmt.Print("Feed restored AGIT context to Codex? [y/N] ")
+	name := "your agent"
+	if b, err := ActiveBridge(); err == nil {
+		name = b.DisplayName()
+	}
+	fmt.Printf("Feed restored AGIT context to %s? [y/N] ", name)
 
 	reader := bufio.NewReader(os.Stdin)
 	answer, err := reader.ReadString('\n')
@@ -154,6 +158,25 @@ func LoadCheckoutContextRaw() ([]byte, bool, error) {
 	}
 
 	return raw, true, nil
+}
+
+// LoadCheckoutContext returns the restored checkout context as a struct.
+// It errors when nothing was restored, so feeders can report that instead
+// of silently doing nothing.
+func LoadCheckoutContext() (*RestoredCheckoutContext, error) {
+	raw, ok, err := LoadCheckoutContextRaw()
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("no checkout context restored; run agit checkout on a commit with AGIT notes first")
+	}
+
+	var ctx RestoredCheckoutContext
+	if err := json.Unmarshal(raw, &ctx); err != nil {
+		return nil, fmt.Errorf("invalid checkout context: %w", err)
+	}
+	return &ctx, nil
 }
 
 func PrintCheckoutContext() error {
