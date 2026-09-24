@@ -87,7 +87,7 @@ func TestSummarizeNoteIgnoresUnknownFields(t *testing.T) {
 }
 
 func TestSummarizeNoteMalformed(t *testing.T) {
-	for _, raw := range []string{"", "{not json", "[1,2"} {
+	for _, raw := range []string{"", "{not json", "[1,2", "null"} {
 		if _, err := summarizeNote([]byte(raw)); err == nil {
 			t.Errorf("expected error for %q, got nil", raw)
 		}
@@ -160,5 +160,18 @@ func TestShortContextID(t *testing.T) {
 	}
 	if got := shortContextID("plain"); got != "plain" {
 		t.Errorf("unexpected short ID for plain input: %q", got)
+	}
+}
+
+func TestTruncateLineMultibyte(t *testing.T) {
+	// "é" is 2 bytes; truncating by bytes would split a rune.
+	s := strings.Repeat("é", 20)
+	got := truncateLine(s, 10)
+	want := strings.Repeat("é", 7) + "..."
+	if got != want {
+		t.Errorf("truncateLine multibyte = %q, want %q", got, want)
+	}
+	if short := truncateLine("hi", 10); short != "hi" {
+		t.Errorf("truncateLine short = %q, want unchanged", short)
 	}
 }

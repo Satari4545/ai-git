@@ -137,9 +137,14 @@ type agitNote struct {
 // summarizeNote extracts the compact summary from a raw AGIT note.
 // A malformed or empty note returns an error; the caller decides how to show it.
 func summarizeNote(raw []byte) (*noteSummary, error) {
-	var note agitNote
+	// Unmarshal into a pointer so a JSON null payload decodes to nil
+	// instead of silently producing a zero-value note.
+	var note *agitNote
 	if err := json.Unmarshal(raw, &note); err != nil {
 		return nil, fmt.Errorf("unreadable note: %w", err)
+	}
+	if note == nil {
+		return nil, fmt.Errorf("unreadable note: null payload")
 	}
 
 	summary := &noteSummary{ContextID: note.ContextID}
@@ -279,10 +284,15 @@ func shortContextID(id string) string {
 }
 
 func truncateLine(s string, max int) string {
-	if len(s) <= max {
+	// Count runes, not bytes, so multi-byte characters are never split.
+	r := []rune(s)
+	if len(r) <= max {
 		return s
 	}
-	return s[:max-3] + "..."
+	if max < 4 {
+		return string(r[:max])
+	}
+	return string(r[:max-3]) + "..."
 }
 
 func truncateList(items []string, max int) []string {
