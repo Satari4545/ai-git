@@ -112,7 +112,7 @@ type noteSummary struct {
 // agitNote mirrors only the fields of a commit note that context log needs.
 // Everything else in the note is ignored so schema additions stay compatible.
 type agitNote struct {
-	ContextID string `json:"contextID"`
+	ContextID  string `json:"contextID"`
 	LogicState *struct {
 		AgentThinking *struct {
 			IntentSummary string   `json:"intentSummary"`
