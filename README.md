@@ -61,6 +61,14 @@ Check context freshness before committing:
 agit context status
 ```
 
+Browse context attached to past commits:
+
+```sh
+agit context log
+agit context log -n 5 -- src/
+agit context log --json
+```
+
 Commit with context:
 
 ```sh
