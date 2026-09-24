@@ -95,10 +95,12 @@ agit bridge codex install
 Installing a bridge sets `agit.contextCommand` (used by `agit commit` to ask
 the agent for fresh context JSON) and selects it via `git config agit.bridge`.
 Checkout handoff (`agit checkout --feed-context`) feeds the restored context
-through the active bridge. To switch agents:
+through the active bridge. To switch agents, run that agent's install (setting
+`agit.bridge` by hand only changes the checkout feed, not the provider
+`agit commit` asks):
 
 ```sh
-git config agit.bridge <agent>
+agit bridge <agent> install
 ```
 
 Configure the Codex bridge:
