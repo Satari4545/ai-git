@@ -4,3 +4,6 @@ dist/
 vendor/
 node_modules/
 *.tgz
+
+# local scratch (review diffs, ad-hoc notes)
+hidden_files/
