@@ -3,6 +3,7 @@ package agit
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -295,5 +296,62 @@ func TestActiveBridgeClaudeCode(t *testing.T) {
 	}
 	if b.Name() != "claude-code" {
 		t.Errorf("bridge = %q, want claude-code", b.Name())
+	}
+}
+
+func TestClaudeCodeInstallNullSettings(t *testing.T) {
+	testutil.InitRepo(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	claudeDir := filepath.Join(home, ".claude")
+	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Valid JSON, but not an object: must be a clean error, not a panic.
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("null"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := GetBridge("claude-code")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Install(); err == nil || !strings.Contains(err.Error(), "settings.json") {
+		t.Errorf("expected error naming settings.json, got: %v", err)
+	}
+}
+
+func TestClaudeCodeInstallAllOrNothing(t *testing.T) {
+	testutil.InitRepo(t) // chdirs into the temp repo; git commands below run there
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	claudeDir := filepath.Join(home, ".claude")
+	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := GetBridge("claude-code")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Install(); err == nil {
+		t.Fatal("expected Install to fail on corrupt settings, got nil")
+	}
+
+	// A failed hook install must not leave git config half-installed.
+	// `git config --get` exits 1 for unset keys, which the test helper
+	// treats as fatal, so shell out directly here.
+	for _, key := range []string{"agit.contextCommand", "agit.bridge"} {
+		out, err := exec.Command("git", "config", "--get", key).Output()
+		if err == nil {
+			t.Errorf("%s should be unset after failed install, got %q", key, strings.TrimSpace(string(out)))
+		} else if ee, ok := err.(*exec.ExitError); !ok || ee.ExitCode() != 1 {
+			t.Errorf("unexpected error reading %s: %v", key, err)
+		}
 	}
 }

@@ -32,13 +32,16 @@ func (claudeCodeBridge) Name() string        { return "claude-code" }
 func (claudeCodeBridge) DisplayName() string { return "Claude Code" }
 
 func (claudeCodeBridge) Install() error {
+	// Install the hook before touching git config: if the settings file
+	// is corrupt or unwritable, fail without leaving a half-installed
+	// bridge behind.
+	if err := installClaudeCodeSessionStartHook(); err != nil {
+		return err
+	}
 	if err := gitwrapRunConfig("agit.contextCommand", "agit bridge claude-code provider"); err != nil {
 		return err
 	}
 	if err := gitwrapRunConfig("agit.bridge", "claude-code"); err != nil {
-		return err
-	}
-	if err := installClaudeCodeSessionStartHook(); err != nil {
 		return err
 	}
 
@@ -195,6 +198,9 @@ func installClaudeCodeSessionStartHook() error {
 	case err == nil:
 		if err := json.Unmarshal(raw, &settings); err != nil {
 			return fmt.Errorf("your %s is not valid JSON; fix it or move it aside, then re-run install: %w", path, err)
+		}
+		if settings == nil {
+			return fmt.Errorf("your %s does not contain a JSON object; fix it or move it aside, then re-run install", path)
 		}
 	case os.IsNotExist(err):
 		// Fresh install: settings map stays empty.

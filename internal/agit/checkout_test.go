@@ -167,6 +167,8 @@ func TestRestoreHEADContextInvalidNote(t *testing.T) {
 func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 	dir := testutil.InitRepo(t)
 	t.Setenv("AGIT_MCP_SILENT", "1")
+	fb := registerFakeBridge(t, "zz-fake-checkout-e2e")
+	testutil.RunGit(t, dir, "config", "agit.bridge", "zz-fake-checkout-e2e")
 
 	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
 	addAgitNote(t, dir, head, testCheckoutNote)
@@ -174,14 +176,14 @@ func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 	testutil.RunGit(t, dir, "checkout", "-qb", "other")
 	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
 
-	// --no-feed-context avoids the interactive prompt and the Codex feed.
-	if err := Checkout([]string{"--no-feed-context", "-q", "-"}); err != nil {
+	// --feed-context feeds through the active bridge without prompting.
+	if err := Checkout([]string{"--feed-context", "-q", "-"}); err != nil {
 		t.Fatalf("Checkout failed: %v", err)
 	}
 
 	raw, ok, err := LoadCheckoutContextRaw()
 	if err != nil || !ok {
-		t.Fatalf("expected checkout context after Checkout, ok=%v err=%v", ok, err)
+		t.Fatalf("expected checkout context after approved feed, ok=%v err=%v", ok, err)
 	}
 	var envelope RestoredCheckoutContext
 	if err := json.Unmarshal(raw, &envelope); err != nil {
@@ -189,6 +191,58 @@ func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 	}
 	if envelope.Commit != head {
 		t.Errorf("restored commit = %q, want %q", envelope.Commit, head)
+	}
+	if fb.fed == nil || fb.fed.Commit != head {
+		t.Error("active bridge was not fed the restored context")
+	}
+}
+
+func TestCheckoutNoFeedDiscardsState(t *testing.T) {
+	dir := testutil.InitRepo(t)
+	t.Setenv("AGIT_MCP_SILENT", "1")
+
+	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
+	addAgitNote(t, dir, head, testCheckoutNote)
+
+	testutil.RunGit(t, dir, "checkout", "-qb", "other")
+	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
+
+	// Declining the feed must not leave feedable state behind for
+	// agent hooks or manual feed verbs.
+	if err := Checkout([]string{"--no-feed-context", "-q", "-"}); err != nil {
+		t.Fatalf("Checkout failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(".agit", "state", "checkout.json")); !os.IsNotExist(err) {
+		t.Error("checkout.json should not exist after a declined feed")
+	}
+}
+
+func TestRestoreHEADContextClearsStaleState(t *testing.T) {
+	dir := testutil.InitRepo(t)
+
+	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
+	addAgitNote(t, dir, head, testCheckoutNote)
+	if _, err := RestoreHEADContext(); err != nil {
+		t.Fatalf("RestoreHEADContext failed: %v", err)
+	}
+	if _, ok, _ := LoadCheckoutContextRaw(); !ok {
+		t.Fatal("expected checkout state after restore")
+	}
+
+	// Move to a commit with no note: the stale state must be cleared so
+	// hooks and manual feeds never see the previous checkout.
+	testutil.RunGit(t, dir, "checkout", "-qb", "other")
+	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
+	restored, err := RestoreHEADContext()
+	if err != nil {
+		t.Fatalf("RestoreHEADContext failed: %v", err)
+	}
+	if restored {
+		t.Error("expected restored=false on a note-less HEAD")
+	}
+	if _, err := os.Stat(filepath.Join(".agit", "state", "checkout.json")); !os.IsNotExist(err) {
+		t.Error("stale checkout.json was not cleared")
 	}
 }
 
