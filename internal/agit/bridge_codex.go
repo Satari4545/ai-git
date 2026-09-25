@@ -12,39 +12,68 @@ import (
 	"strings"
 )
 
-func Bridge(args []string) error {
-	if len(args) < 1 || args[0] != "codex" {
-		fmt.Println("usage: agit bridge codex install|provider|session set <id>|session get|session unset")
-		return nil
-	}
-
-	if len(args) < 2 {
-		fmt.Println("usage: agit bridge codex install|provider|session set <id>|session get|session unset")
-		return nil
-	}
-
-	switch args[1] {
-	case "install":
-		return installCodexBridge()
-	case "provider":
-		return runCodexBridgeProvider()
-	case "feed":
-		return FeedCodexCheckoutContext()
-	case "session":
-		return codexBridgeSession(args[2:])
-	default:
-		fmt.Println("usage: agit bridge codex install|provider|session set <id>|session get|session unset")
-		return nil
-	}
+func init() {
+	RegisterBridge(codexBridge{})
 }
 
-func installCodexBridge() error {
+// codexBridge is the AgentBridge implementation for Codex.
+type codexBridge struct{}
+
+var _ AgentBridge = codexBridge{}
+
+func (codexBridge) Name() string        { return "codex" }
+func (codexBridge) DisplayName() string { return "Codex" }
+
+func (codexBridge) Install() error {
 	if err := gitwrapRunConfig("agit.contextCommand", "agit bridge codex provider"); err != nil {
+		return err
+	}
+	if err := gitwrapRunConfig("agit.bridge", "codex"); err != nil {
 		return err
 	}
 
 	fmt.Println("agit: Codex context provider configured")
 	fmt.Println("agit: run 'agit mcp install codex' so Codex can also restore/read context through MCP")
+	return nil
+}
+
+// Provide asks the Codex session for fresh context JSON. The response is
+// parsed and normalized by the generic provider verb.
+func (codexBridge) Provide() ([]byte, error) {
+	return askCodexForContext()
+}
+
+// Feed delivers restored checkout context to the Codex session.
+func (codexBridge) Feed(ctx *RestoredCheckoutContext) error {
+	raw, err := json.MarshalIndent(ctx, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	prompt := "The user just checked out a branch. Read this ai-git restored checkout context and use it as working context for future coding help. Do not summarize it back unless asked.\n\n" + string(raw)
+	cmdArgs := []string{"exec", "resume"}
+	if sessionID := codexSessionID(); sessionID != "" {
+		cmdArgs = append(cmdArgs, sessionID)
+	} else {
+		cmdArgs = append(cmdArgs, "--last")
+	}
+	cmdArgs = append(cmdArgs, prompt)
+
+	cmd := exec.Command(codexExecutable(), cmdArgs...)
+	cmd.Env = append(os.Environ(), "AGIT_CODEX_CONTEXT_FEED=1")
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return fmt.Errorf("Codex checkout feed failed: %s", message)
+	}
+
+	fmt.Println("agit: fed checkout context to Codex")
 	return nil
 }
 
@@ -74,64 +103,6 @@ func codexBridgeSession(args []string) error {
 	}
 
 	fmt.Println("usage: agit bridge codex session set <id>|get|unset")
-	return nil
-}
-
-func runCodexBridgeProvider() error {
-	raw, err := askCodexForContext()
-	if err != nil {
-		return err
-	}
-
-	ctx, err := ParseAgentContextJSON(raw)
-	if err != nil {
-		return err
-	}
-
-	ctx.Provider = firstNonEmpty(ctx.Provider, "codex")
-
-	normalized, err := json.Marshal(ctx)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(string(normalized))
-	return nil
-}
-
-func FeedCodexCheckoutContext() error {
-	raw, ok, err := LoadCheckoutContextRaw()
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("no checkout context restored; run agit checkout on a commit with AGIT notes first")
-	}
-
-	prompt := "The user just checked out a branch. Read this ai-git restored checkout context and use it as working context for future coding help. Do not summarize it back unless asked.\n\n" + string(raw)
-	cmdArgs := []string{"exec", "resume"}
-	if sessionID := codexSessionID(); sessionID != "" {
-		cmdArgs = append(cmdArgs, sessionID)
-	} else {
-		cmdArgs = append(cmdArgs, "--last")
-	}
-	cmdArgs = append(cmdArgs, prompt)
-
-	cmd := exec.Command(codexExecutable(), cmdArgs...)
-	cmd.Env = append(os.Environ(), "AGIT_CODEX_CONTEXT_FEED=1")
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = err.Error()
-		}
-		return fmt.Errorf("Codex checkout feed failed: %s", message)
-	}
-
-	fmt.Println("agit: fed checkout context to Codex")
 	return nil
 }
 
@@ -204,7 +175,7 @@ func extractJSONObject(raw []byte) ([]byte, error) {
 	start := bytes.IndexByte(raw, '{')
 	end := bytes.LastIndexByte(raw, '}')
 	if start < 0 || end < start {
-		return nil, errors.New("Codex did not return a JSON object")
+		return nil, errors.New("agent did not return a JSON object")
 	}
 
 	candidate := raw[start : end+1]

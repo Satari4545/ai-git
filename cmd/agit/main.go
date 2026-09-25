@@ -117,7 +117,8 @@ Usage:
   agit checkout [--feed-context|--no-feed-context] [git checkout args...]
   agit context status
   agit context log [-n N] [--json] [-- <path>...]
-  agit bridge codex install
+  agit bridge list
+  agit bridge <agent> install
   agit bridge codex session set <id>
   agit config checkout-feed prompt|enable|disable
   agit config context-timeout <seconds>
