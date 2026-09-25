@@ -118,6 +118,20 @@ If multiple Codex sessions exist, pin the bridge to the right one:
 agit bridge codex session set <session-id>
 ```
 
+### Claude Code
+
+```sh
+agit bridge claude-code install
+```
+
+This wires `agit commit` to ask Claude Code for context JSON via
+`claude -p --output-format json`, selects the bridge, and registers a
+native `SessionStart` hook in `~/.claude/settings.json`. After
+`agit checkout` restores context, the hook injects it as additional
+context at the start of your next Claude Code session in that repo, and
+`agit bridge claude-code feed` also writes it to
+`.agit/state/claude-code-feed.md` for manual paste.
+
 If no session is configured, the Codex bridge uses `codex exec resume --last`.
 
 Checkout feed prompts by default. To choose a default behavior:

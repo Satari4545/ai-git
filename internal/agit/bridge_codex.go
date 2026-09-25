@@ -175,7 +175,7 @@ func extractJSONObject(raw []byte) ([]byte, error) {
 	start := bytes.IndexByte(raw, '{')
 	end := bytes.LastIndexByte(raw, '}')
 	if start < 0 || end < start {
-		return nil, errors.New("Codex did not return a JSON object")
+		return nil, errors.New("agent did not return a JSON object")
 	}
 
 	candidate := raw[start : end+1]
