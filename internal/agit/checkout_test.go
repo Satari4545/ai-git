@@ -167,8 +167,8 @@ func TestRestoreHEADContextInvalidNote(t *testing.T) {
 func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 	dir := testutil.InitRepo(t)
 	t.Setenv("AGIT_MCP_SILENT", "1")
-	fb := registerFakeBridge(t, "zz-fake-checkout-e2e")
-	testutil.RunGit(t, dir, "config", "agit.bridge", "zz-fake-checkout-e2e")
+	testutil.RunGit(t, dir, "config", "agit.bridge", "codex")
+	stubDir := writeCodexStub(t, "")
 
 	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
 	addAgitNote(t, dir, head, testCheckoutNote)
@@ -192,8 +192,12 @@ func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 	if envelope.Commit != head {
 		t.Errorf("restored commit = %q, want %q", envelope.Commit, head)
 	}
-	if fb.fed == nil || fb.fed.Commit != head {
-		t.Error("active bridge was not fed the restored context")
+
+	// The real codex bridge must have been fed the restored context: the
+	// stubbed `codex` binary records the exact invocation.
+	args := readCodexStubArgs(t, stubDir)
+	if !strings.Contains(args, head) {
+		t.Errorf("codex feed missing restored commit %s:\n%s", head, args)
 	}
 }
 

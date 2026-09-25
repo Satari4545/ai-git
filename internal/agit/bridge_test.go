@@ -1,60 +1,91 @@
 package agit
 
 import (
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
-// fakeBridge is a test double for the Bridge interface.
-type fakeBridge struct {
-	name        string
-	displayName string
-	installErr  error
-	feedErr     error
-	provideJSON string
-	provideErr  error
-
-	installed bool
-	fed       *RestoredCheckoutContext
-	provided  bool
-}
-
-func (f *fakeBridge) Name() string        { return f.name }
-func (f *fakeBridge) DisplayName() string { return f.displayName }
-func (f *fakeBridge) Install() error {
-	f.installed = true
-	return f.installErr
-}
-func (f *fakeBridge) Feed(ctx *RestoredCheckoutContext) error {
-	f.fed = ctx
-	return f.feedErr
-}
-func (f *fakeBridge) Provide() ([]byte, error) {
-	f.provided = true
-	if f.provideErr != nil {
-		return nil, f.provideErr
-	}
-	return []byte(f.provideJSON), nil
-}
-
-func registerFakeBridge(t *testing.T, name string) *fakeBridge {
+// writeCodexStub installs a fake `codex` executable on PATH and returns the
+// stub directory. The CLI binary is the only thing stubbed in the bridge
+// tests: the real Codex CLI needs authentication and makes network calls,
+// so tests replace the binary itself while dispatch, Feed argument
+// building, Provide output parsing, and provider normalization all run for
+// real.
+//
+// Invoked arguments are recorded at <dir>/args. When the invocation carries
+// --output-last-message <path> (the Provide path), provideJSON is written to
+// that path, mimicking `codex exec resume --output-last-message`.
+func writeCodexStub(t *testing.T, provideJSON string) string {
 	t.Helper()
-	fb := &fakeBridge{name: name, displayName: "Fake " + name}
-	RegisterBridge(fb)
-	return fb
+
+	dir := t.TempDir()
+	argsPath := filepath.Join(dir, "args")
+	script := "#!/bin/sh\n" +
+		"echo \"$@\" > \"" + argsPath + "\"\n" +
+		"out=\"\"\n" +
+		"prev=\"\"\n" +
+		"for a in \"$@\"; do\n" +
+		"  if [ \"$prev\" = \"--output-last-message\" ]; then out=\"$a\"; fi\n" +
+		"  prev=\"$a\"\n" +
+		"done\n" +
+		"if [ -n \"$out\" ]; then\n" +
+		"  printf '%s' '" + provideJSON + "' > \"$out\"\n" +
+		"fi\n"
+	if err := os.WriteFile(filepath.Join(dir, "codex"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return dir
+}
+
+// readCodexStubArgs returns the arguments the fake `codex` binary was
+// invoked with, failing the test if it was never invoked.
+func readCodexStubArgs(t *testing.T, stubDir string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(stubDir, "args"))
+	if err != nil {
+		t.Fatalf("codex stub was not invoked: %v", err)
+	}
+	return string(raw)
+}
+
+// captureStdout runs fn with os.Stdout redirected to a pipe and returns
+// what fn printed. It lets tests assert on the real provider output
+// without replacing any component.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	defer func() { os.Stdout = old }()
+
+	fn()
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
 }
 
 func TestBridgeRegistryRoundTrip(t *testing.T) {
-	fb := registerFakeBridge(t, "zz-fake-registry")
-
-	got, err := GetBridge("zz-fake-registry")
+	b, err := GetBridge("codex")
 	if err != nil {
-		t.Fatalf("GetBridge failed: %v", err)
+		t.Fatalf("GetBridge(codex) failed: %v", err)
 	}
-	if got != AgentBridge(fb) {
-		t.Error("GetBridge did not return the registered bridge")
+	if b.Name() != "codex" {
+		t.Errorf("Name = %q, want codex", b.Name())
 	}
 
 	if _, err := GetBridge("does-not-exist"); err == nil {
@@ -63,15 +94,12 @@ func TestBridgeRegistryRoundTrip(t *testing.T) {
 }
 
 func TestBridgeNamesSorted(t *testing.T) {
-	registerFakeBridge(t, "zz-fake-names-b")
-	registerFakeBridge(t, "zz-fake-names-a")
-
 	names := BridgeNames()
 	found := map[string]bool{}
 	for _, n := range names {
 		found[n] = true
 	}
-	for _, want := range []string{"codex", "zz-fake-names-a", "zz-fake-names-b"} {
+	for _, want := range []string{"codex", "claude-code"} {
 		if !found[want] {
 			t.Errorf("BridgeNames missing %q: %v", want, names)
 		}
@@ -95,13 +123,16 @@ func TestCodexBridgeRegistered(t *testing.T) {
 }
 
 func TestBridgeDispatchInstall(t *testing.T) {
-	fb := registerFakeBridge(t, "zz-fake-install")
+	dir := testutil.InitRepo(t)
 
-	if err := Bridge([]string{"zz-fake-install", "install"}); err != nil {
+	if err := Bridge([]string{"codex", "install"}); err != nil {
 		t.Fatalf("Bridge install failed: %v", err)
 	}
-	if !fb.installed {
-		t.Error("Install was not called on the bridge")
+	if got := testutil.RunGit(t, dir, "config", "--get", "agit.contextCommand"); strings.TrimSpace(got) != "agit bridge codex provider" {
+		t.Errorf("agit.contextCommand = %q", strings.TrimSpace(got))
+	}
+	if got := testutil.RunGit(t, dir, "config", "--get", "agit.bridge"); strings.TrimSpace(got) != "codex" {
+		t.Errorf("agit.bridge = %q", strings.TrimSpace(got))
 	}
 }
 
@@ -120,7 +151,7 @@ func TestBridgeDispatchNoArgsPrintsUsage(t *testing.T) {
 
 func TestBridgeDispatchFeed(t *testing.T) {
 	dir := testutil.InitRepo(t)
-	fb := registerFakeBridge(t, "zz-fake-feed")
+	stubDir := writeCodexStub(t, "")
 
 	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
 	addAgitNote(t, dir, head, testCheckoutNote)
@@ -128,22 +159,29 @@ func TestBridgeDispatchFeed(t *testing.T) {
 		t.Fatalf("RestoreHEADContext failed: %v", err)
 	}
 
-	if err := Bridge([]string{"zz-fake-feed", "feed"}); err != nil {
+	if err := Bridge([]string{"codex", "feed"}); err != nil {
 		t.Fatalf("Bridge feed failed: %v", err)
 	}
-	if fb.fed == nil {
-		t.Fatal("Feed was not called on the bridge")
+
+	args := readCodexStubArgs(t, stubDir)
+	for _, want := range []string{"exec", "resume", "--last"} {
+		if !strings.Contains(args, want) {
+			t.Errorf("codex stub args missing %q: %s", want, args)
+		}
 	}
-	if fb.fed.Commit != head {
-		t.Errorf("fed commit = %q, want %q", fb.fed.Commit, head)
+	if !strings.Contains(args, head) {
+		t.Errorf("feed prompt missing restored commit %s:\n%s", head, args)
+	}
+	if !strings.Contains(args, "work on feature branch") {
+		t.Errorf("feed prompt missing restored intent:\n%s", args)
 	}
 }
 
 func TestBridgeDispatchFeedWithoutContext(t *testing.T) {
 	testutil.InitRepo(t)
-	registerFakeBridge(t, "zz-fake-feed-empty")
+	writeCodexStub(t, "")
 
-	err := Bridge([]string{"zz-fake-feed-empty", "feed"})
+	err := Bridge([]string{"codex", "feed"})
 	if err == nil || !strings.Contains(err.Error(), "no checkout context") {
 		t.Errorf("expected no-context error, got: %v", err)
 	}
@@ -151,16 +189,26 @@ func TestBridgeDispatchFeedWithoutContext(t *testing.T) {
 
 func TestBridgeDispatchProviderNormalizes(t *testing.T) {
 	testutil.InitRepo(t)
-	fb := registerFakeBridge(t, "zz-fake-provider")
-	fb.provideJSON = `{"intent": "ship it"}`
+	stubDir := writeCodexStub(t, `{"intent":"stubbed intent"}`)
 
-	// Output goes to stdout; assert the wiring ran and normalization
-	// is covered by TestNormalizeProviderContext below.
-	if err := Bridge([]string{"zz-fake-provider", "provider"}); err != nil {
-		t.Fatalf("Bridge provider failed: %v", err)
+	out := captureStdout(t, func() {
+		if err := Bridge([]string{"codex", "provider"}); err != nil {
+			t.Errorf("Bridge provider failed: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, `"provider":"codex"`) {
+		t.Errorf("provider default not applied: %s", out)
 	}
-	if !fb.provided {
-		t.Error("Provide was not called on the bridge")
+	if !strings.Contains(out, `"intentSummary":"stubbed intent"`) {
+		t.Errorf("provider output missing stubbed intent: %s", out)
+	}
+
+	args := readCodexStubArgs(t, stubDir)
+	for _, want := range []string{"exec", "resume", "--last", "--output-last-message"} {
+		if !strings.Contains(args, want) {
+			t.Errorf("codex stub args missing %q: %s", want, args)
+		}
 	}
 }
 
@@ -200,15 +248,14 @@ func TestActiveBridgeDefaultsToCodex(t *testing.T) {
 
 func TestActiveBridgeReadsConfig(t *testing.T) {
 	dir := testutil.InitRepo(t)
-	registerFakeBridge(t, "zz-fake-active")
 
-	testutil.RunGit(t, dir, "config", "agit.bridge", "zz-fake-active")
+	testutil.RunGit(t, dir, "config", "agit.bridge", "claude-code")
 	b, err := ActiveBridge()
 	if err != nil {
 		t.Fatalf("ActiveBridge failed: %v", err)
 	}
-	if b.Name() != "zz-fake-active" {
-		t.Errorf("bridge = %q, want zz-fake-active", b.Name())
+	if b.Name() != "claude-code" {
+		t.Errorf("bridge = %q, want claude-code", b.Name())
 	}
 
 	testutil.RunGit(t, dir, "config", "agit.bridge", "no-such-agent")
@@ -219,8 +266,8 @@ func TestActiveBridgeReadsConfig(t *testing.T) {
 
 func TestFeedCheckoutContextUsesActiveBridge(t *testing.T) {
 	dir := testutil.InitRepo(t)
-	fb := registerFakeBridge(t, "zz-fake-checkout-feed")
-	testutil.RunGit(t, dir, "config", "agit.bridge", "zz-fake-checkout-feed")
+	stubDir := writeCodexStub(t, "")
+	testutil.RunGit(t, dir, "config", "agit.bridge", "codex")
 
 	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
 	addAgitNote(t, dir, head, testCheckoutNote)
@@ -231,8 +278,10 @@ func TestFeedCheckoutContextUsesActiveBridge(t *testing.T) {
 	if err := feedCheckoutContext(); err != nil {
 		t.Fatalf("feedCheckoutContext failed: %v", err)
 	}
-	if fb.fed == nil || fb.fed.Commit != head {
-		t.Errorf("active bridge was not fed the restored context")
+
+	args := readCodexStubArgs(t, stubDir)
+	if !strings.Contains(args, head) {
+		t.Errorf("active bridge feed missing restored commit %s:\n%s", head, args)
 	}
 }
 
