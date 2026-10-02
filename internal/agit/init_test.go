@@ -50,7 +50,7 @@ func TestInitInitializesGitRepo(t *testing.T) {
 }
 
 func TestInitAddsNotesRefspecWhenOriginExists(t *testing.T) {
-	dir := testutil.InitRepo(t) // chdirs into dir
+	dir := testutil.InitRepo(t)
 	bare := t.TempDir()
 	testutil.RunGit(t, bare, "init", "--bare", "-q")
 	testutil.RunGit(t, dir, "remote", "add", "origin", bare)
@@ -71,7 +71,7 @@ func TestInitAddsNotesRefspecWhenOriginExists(t *testing.T) {
 }
 
 func TestInitIsIdempotent(t *testing.T) {
-	dir := testutil.InitRepo(t) // chdirs into dir
+	dir := testutil.InitRepo(t)
 	bare := t.TempDir()
 	testutil.RunGit(t, bare, "init", "--bare", "-q")
 	testutil.RunGit(t, dir, "remote", "add", "origin", bare)
@@ -94,15 +94,12 @@ func TestInitIsIdempotent(t *testing.T) {
 }
 
 func TestInitWithoutOriginSkipsRefspec(t *testing.T) {
-	dir := testutil.InitRepo(t) // chdirs into dir, no origin remote
+	dir := testutil.InitRepo(t)
 
 	if err := Init(); err != nil {
 		t.Fatalf("Init() without origin = %v, want nil", err)
 	}
 
-	// No origin means no fetch config to check; the key assertion is no error.
-	// Also verify no .agit side effects are required up front: state dirs are
-	// created on demand by record/checkout.
 	if _, err := os.Stat(filepath.Join(dir, ".agit")); !os.IsNotExist(err) {
 		t.Errorf(".agit dir should not be created eagerly by init")
 	}
