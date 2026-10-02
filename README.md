@@ -142,7 +142,9 @@ context at the start of your next Claude Code session in that repo, and
 
 If no session is configured, the Codex bridge uses `codex exec resume --last`.
 
-Checkout feed prompts by default. To choose a default behavior:
+Checkout feed is automatic by default: it feeds the restored context to
+the configured agent bridge without prompting. A failed feed only prints a
+warning; the checkout still succeeds. To choose a different behavior:
 
 ```sh
 agit config checkout-feed prompt
@@ -156,7 +158,7 @@ Then:
 agit checkout feature-branch
 ```
 
-If the checked-out commit has AGIT context, ai-git restores it and either prompts, feeds automatically, or skips feeding based on config.
+If the checked-out commit has AGIT context, ai-git restores it and feeds it automatically, prompts, or skips feeding based on config. The restored context always stays in `.agit/state/checkout.json`, so `get_context` works even when the feed is skipped or fails.
 
 Override for one checkout:
 

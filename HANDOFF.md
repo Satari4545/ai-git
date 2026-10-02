@@ -194,7 +194,7 @@ Pin Codex bridge to a specific session when multiple sessions exist:
 go run ./cmd/agit bridge codex session set <session-id>
 ```
 
-Enable opt-in checkout context feed:
+Configure the checkout context feed (automatic by default):
 
 ```powershell
 go run ./cmd/agit config checkout-feed prompt

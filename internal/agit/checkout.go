@@ -34,18 +34,11 @@ func Checkout(args []string) error {
 
 	if restored {
 		fmt.Println("agit: restored checkout context from HEAD")
-		shouldFeed, err := ShouldFeedCheckoutContext(feedOverride)
-		if err != nil {
-			return err
-		}
-		if !shouldFeed {
-			// Feed declined: don't leave feedable state behind for
-			// agent hooks or manual feed verbs.
-			_ = os.Remove(checkoutStatePath())
-			return nil
-		}
-		if err := feedCheckoutContext(); err != nil {
-			return err
+		// Restore and feed are decoupled: the restored context stays in
+		// checkout.json no matter the feed decision, so get_context and
+		// agent hooks keep working even when the feed is skipped.
+		if ShouldFeedCheckoutContext(feedOverride) {
+			feedCheckoutContextOrWarn()
 		}
 	} else {
 		fmt.Println("agit: no AGIT context note found on HEAD")
@@ -72,25 +65,40 @@ func stripCheckoutAgitArgs(args []string) ([]string, string) {
 	return gitArgs, feedOverride
 }
 
-func ShouldFeedCheckoutContext(feedOverride string) (bool, error) {
+// ShouldFeedCheckoutContext decides whether the restored checkout context
+// is fed into the active agent bridge. Explicit flags win, then the
+// agit.checkoutFeed config. The prompt only appears when it was explicitly
+// configured and stdin is a terminal: auto mode never reads stdin, so
+// scripted, piped, and agent-driven checkouts cannot hang or fail on it.
+func ShouldFeedCheckoutContext(feedOverride string) bool {
 	switch feedOverride {
 	case "enabled":
-		return true, nil
+		return true
 	case "disabled":
-		return false, nil
+		return false
 	}
 
 	switch CheckoutFeedMode() {
 	case "enabled":
-		return true, nil
+		return true
 	case "disabled":
-		return false, nil
+		return false
+	case "prompt":
+		return stdinIsTTY() && promptForCheckoutFeed()
 	default:
-		return promptForCheckoutFeed()
+		return false
 	}
 }
 
-func promptForCheckoutFeed() (bool, error) {
+func stdinIsTTY() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+func promptForCheckoutFeed() bool {
 	name := "your agent"
 	if b, err := ActiveBridge(); err == nil {
 		name = b.DisplayName()
@@ -100,11 +108,25 @@ func promptForCheckoutFeed() (bool, error) {
 	reader := bufio.NewReader(os.Stdin)
 	answer, err := reader.ReadString('\n')
 	if err != nil {
-		return false, err
+		return false
 	}
 
 	answer = strings.TrimSpace(strings.ToLower(answer))
-	return answer == "y" || answer == "yes", nil
+	return answer == "y" || answer == "yes"
+}
+
+// feedCheckoutContextOrWarn delivers the restored checkout context to the
+// configured agent bridge when one resolves. With no bridge it skips
+// silently; a failed feed is a stderr warning, never a checkout failure,
+// because the restored state remains readable via get_context regardless.
+func feedCheckoutContextOrWarn() {
+	b, err := ActiveBridge()
+	if err != nil {
+		return
+	}
+	if err := feedViaBridge(b); err != nil {
+		fmt.Fprintf(os.Stderr, "agit: warning: could not feed checkout context to %s: %v\n", b.DisplayName(), err)
+	}
 }
 
 func RestoreHEADContext() (bool, error) {
@@ -155,8 +177,9 @@ func RestoreHEADContext() (bool, error) {
 
 // checkoutStatePath is the well-known location of the restored checkout
 // context. The file exists if and only if the last checkout restored a
-// note and feeding was approved, so hooks and manual feed verbs can
-// treat its presence as the feed decision.
+// note from HEAD, regardless of the feed decision, so hooks, manual feed
+// verbs, and the get_context MCP tool can read it whenever context was
+// restored.
 func checkoutStatePath() string {
 	return filepath.Join(".agit", "state", "checkout.json")
 }

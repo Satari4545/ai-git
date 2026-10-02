@@ -160,13 +160,3 @@ func normalizeProviderContext(raw []byte, providerName string) ([]byte, error) {
 	ctx.Provider = firstNonEmpty(ctx.Provider, providerName)
 	return json.Marshal(ctx)
 }
-
-// feedCheckoutContext delivers the restored checkout context to the
-// currently configured agent bridge.
-func feedCheckoutContext() error {
-	b, err := ActiveBridge()
-	if err != nil {
-		return err
-	}
-	return feedViaBridge(b)
-}
