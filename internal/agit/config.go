@@ -65,9 +65,30 @@ func Config(args []string) error {
 		return nil
 	}
 
+	if len(args) == 2 && args[0] == "redact" {
+		switch args[1] {
+		case "on", "enable", "enabled", "true":
+			if err := gitwrap.Run("config", "agit.redact", "true"); err != nil {
+				return err
+			}
+			fmt.Println("agit: secret redaction enabled")
+			return nil
+		case "off", "disable", "disabled", "false":
+			if err := gitwrap.Run("config", "agit.redact", "false"); err != nil {
+				return err
+			}
+			fmt.Println("agit: secret redaction disabled")
+			return nil
+		case "status":
+			fmt.Println(RedactMode())
+			return nil
+		}
+	}
+
 	fmt.Println("usage: agit config context-provider set <command>|get|unset")
 	fmt.Println("usage: agit config context-timeout <seconds>")
 	fmt.Println("usage: agit config checkout-feed enable|disable|prompt|status")
+	fmt.Println("usage: agit config redact on|off|status")
 	return nil
 }
 

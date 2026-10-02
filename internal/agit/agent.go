@@ -202,6 +202,10 @@ func SaveAgentContext(ctx *AgentContext) error {
 
 	populateGitContext(ctx)
 
+	// Sanitize before persisting: covers the state file and, via
+	// LoadAgentContext, the git note commit.go attaches.
+	SanitizeAgentContext(ctx)
+
 	if err := os.MkdirAll(filepath.Join(".agit", "state"), 0755); err != nil {
 		return err
 	}
