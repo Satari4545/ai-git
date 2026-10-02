@@ -264,7 +264,7 @@ func TestActiveBridgeReadsConfig(t *testing.T) {
 	}
 }
 
-func TestFeedCheckoutContextUsesActiveBridge(t *testing.T) {
+func TestFeedCheckoutContextOrWarnUsesActiveBridge(t *testing.T) {
 	dir := testutil.InitRepo(t)
 	stubDir := writeCodexStub(t, "")
 	testutil.RunGit(t, dir, "config", "agit.bridge", "codex")
@@ -275,9 +275,7 @@ func TestFeedCheckoutContextUsesActiveBridge(t *testing.T) {
 		t.Fatalf("RestoreHEADContext failed: %v", err)
 	}
 
-	if err := feedCheckoutContext(); err != nil {
-		t.Fatalf("feedCheckoutContext failed: %v", err)
-	}
+	feedCheckoutContextOrWarn()
 
 	args := readCodexStubArgs(t, stubDir)
 	if !strings.Contains(args, head) {

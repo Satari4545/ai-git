@@ -74,7 +74,11 @@ Expect: refs fetched, then `agit: fetched logic notes`. (`agit pull` does the sa
 agit checkout <branch>
 ```
 
-Expect: `agit: restored checkout context from HEAD`, then a feed prompt (configurable via `agit config checkout-feed`).
+Expect: `agit: restored checkout context from HEAD`. ai-git then feeds the
+context to your configured agent bridge automatically (configure with
+`agit config checkout-feed`; `--feed-context`/`--no-feed-context` override
+per checkout). The restored context stays in `.agit/state/checkout.json`
+either way, so the next step works even when the feed is skipped or fails.
 
 ## 8. Let the agent read it
 

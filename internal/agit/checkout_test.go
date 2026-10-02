@@ -1,10 +1,14 @@
 package agit
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -47,11 +51,11 @@ func TestStripCheckoutAgitArgs(t *testing.T) {
 }
 
 func TestShouldFeedCheckoutContextOverrides(t *testing.T) {
-	if ok, err := ShouldFeedCheckoutContext("enabled"); err != nil || !ok {
-		t.Errorf("override enabled: ok=%v err=%v, want true", ok, err)
+	if !ShouldFeedCheckoutContext("enabled") {
+		t.Error("override enabled: want true")
 	}
-	if ok, err := ShouldFeedCheckoutContext("disabled"); err != nil || ok {
-		t.Errorf("override disabled: ok=%v err=%v, want false", ok, err)
+	if ShouldFeedCheckoutContext("disabled") {
+		t.Error("override disabled: want false")
 	}
 }
 
@@ -59,13 +63,37 @@ func TestShouldFeedCheckoutContextConfigModes(t *testing.T) {
 	dir := testutil.InitRepo(t)
 
 	testutil.RunGit(t, dir, "config", "agit.checkoutFeed", "true")
-	if ok, err := ShouldFeedCheckoutContext(""); err != nil || !ok {
-		t.Errorf("config true: ok=%v err=%v, want true", ok, err)
+	if !ShouldFeedCheckoutContext("") {
+		t.Error("config true: want true")
 	}
 
 	testutil.RunGit(t, dir, "config", "agit.checkoutFeed", "false")
-	if ok, err := ShouldFeedCheckoutContext(""); err != nil || ok {
-		t.Errorf("config false: ok=%v err=%v, want false", ok, err)
+	if ShouldFeedCheckoutContext("") {
+		t.Error("config false: want false")
+	}
+
+	testutil.RunGit(t, dir, "config", "--unset", "agit.checkoutFeed")
+	if !ShouldFeedCheckoutContext("") {
+		t.Error("unset config: want true, auto is the default")
+	}
+}
+
+func TestShouldFeedCheckoutContextPromptSkipsWithoutTTY(t *testing.T) {
+	dir := testutil.InitRepo(t)
+	testutil.RunGit(t, dir, "config", "agit.checkoutFeed", "prompt")
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	defer w.Close()
+	oldStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = oldStdin }()
+
+	if ShouldFeedCheckoutContext("") {
+		t.Error("prompt mode without a TTY must skip the feed instead of hanging")
 	}
 }
 
@@ -83,7 +111,7 @@ func TestCheckoutFeedModeMappings(t *testing.T) {
 		{"disable", "disabled"},
 		{"disabled", "disabled"},
 		{"prompt", "prompt"},
-		{"unexpected-value", "prompt"},
+		{"unexpected-value", "enabled"},
 	}
 
 	for _, tt := range tests {
@@ -94,8 +122,8 @@ func TestCheckoutFeedModeMappings(t *testing.T) {
 	}
 
 	testutil.RunGit(t, dir, "config", "--unset", "agit.checkoutFeed")
-	if got := CheckoutFeedMode(); got != "prompt" {
-		t.Errorf("CheckoutFeedMode(unset) = %q, want prompt", got)
+	if got := CheckoutFeedMode(); got != "enabled" {
+		t.Errorf("CheckoutFeedMode(unset) = %q, want enabled", got)
 	}
 }
 
@@ -192,15 +220,13 @@ func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 		t.Errorf("restored commit = %q, want %q", envelope.Commit, head)
 	}
 
-	// The real codex bridge must have been fed the restored context: the
-	// stubbed `codex` binary records the exact invocation.
 	args := readCodexStubArgs(t, stubDir)
 	if !strings.Contains(args, head) {
 		t.Errorf("codex feed missing restored commit %s:\n%s", head, args)
 	}
 }
 
-func TestCheckoutNoFeedDiscardsState(t *testing.T) {
+func TestCheckoutNoFeedKeepsState(t *testing.T) {
 	dir := testutil.InitRepo(t)
 	t.Setenv("AGIT_MCP_SILENT", "1")
 
@@ -210,14 +236,46 @@ func TestCheckoutNoFeedDiscardsState(t *testing.T) {
 	testutil.RunGit(t, dir, "checkout", "-qb", "other")
 	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
 
-	// Declining the feed must not leave feedable state behind for
-	// agent hooks or manual feed verbs.
 	if err := Checkout([]string{"--no-feed-context", "-q", "-"}); err != nil {
 		t.Fatalf("Checkout failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(".agit", "state", "checkout.json")); !os.IsNotExist(err) {
-		t.Error("checkout.json should not exist after a declined feed")
+	raw, ok, err := LoadCheckoutContextRaw()
+	if err != nil || !ok {
+		t.Fatalf("declining the feed must keep the restored context, ok=%v err=%v", ok, err)
+	}
+	var envelope RestoredCheckoutContext
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		t.Fatalf("checkout.json invalid: %v", err)
+	}
+	if envelope.Commit != head {
+		t.Errorf("restored commit = %q, want %q", envelope.Commit, head)
+	}
+}
+
+func TestCheckoutFailedFeedWarnsWithoutFailing(t *testing.T) {
+	dir := testutil.InitRepo(t)
+	t.Setenv("AGIT_MCP_SILENT", "1")
+	testutil.RunGit(t, dir, "config", "agit.bridge", "codex")
+	writeFailingCodexStub(t)
+
+	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
+	addAgitNote(t, dir, head, testCheckoutNote)
+
+	testutil.RunGit(t, dir, "checkout", "-qb", "other")
+	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
+
+	stderr := captureStderr(t, func() {
+		if err := Checkout([]string{"--feed-context", "-q", "-"}); err != nil {
+			t.Fatalf("a failed feed must not fail checkout, got: %v", err)
+		}
+	})
+
+	if !strings.Contains(stderr, "warning") {
+		t.Errorf("expected a stderr warning about the failed feed, got: %q", stderr)
+	}
+	if _, ok, err := LoadCheckoutContextRaw(); err != nil || !ok {
+		t.Errorf("checkout.json must survive a failed feed, ok=%v err=%v", ok, err)
 	}
 }
 
@@ -233,8 +291,6 @@ func TestRestoreHEADContextClearsStaleState(t *testing.T) {
 		t.Fatal("expected checkout state after restore")
 	}
 
-	// Move to a commit with no note: the stale state must be cleared so
-	// hooks and manual feeds never see the previous checkout.
 	testutil.RunGit(t, dir, "checkout", "-qb", "other")
 	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
 	restored, err := RestoreHEADContext()
@@ -272,4 +328,163 @@ func TestLoadCheckoutContextRawMissing(t *testing.T) {
 	if err != nil || ok || raw != nil {
 		t.Errorf("expected (nil, false, nil), got (%v, %v, %v)", raw, ok, err)
 	}
+}
+
+func TestCheckoutBinaryAutoFeedNeverPrompts(t *testing.T) {
+	bin := buildAgitBinary(t)
+	t.Setenv("AGIT_MCP_SILENT", "1")
+
+	t.Run("failed feed warns, exits zero, keeps state", func(t *testing.T) {
+		dir, head := initBinaryTestRepo(t)
+		writeFailingCodexStub(t)
+
+		stdout, stderr, err := runAgitBinary(t, bin, dir, "checkout", "-q", "-")
+		if err != nil {
+			t.Fatalf("agit checkout exited non-zero: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+		}
+		if strings.Contains(stdout, "Feed restored AGIT context") {
+			t.Errorf("checkout must not prompt in auto mode, stdout: %q", stdout)
+		}
+		if !strings.Contains(stderr, "warning") {
+			t.Errorf("expected a stderr warning for the failed feed, stderr: %q", stderr)
+		}
+		assertBinaryCheckoutState(t, dir, head)
+	})
+
+	t.Run("no-feed-context keeps state without feeding", func(t *testing.T) {
+		dir, head := initBinaryTestRepo(t)
+
+		stdout, stderr, err := runAgitBinary(t, bin, dir, "checkout", "--no-feed-context", "-q", "-")
+		if err != nil {
+			t.Fatalf("agit checkout exited non-zero: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
+		}
+		if strings.Contains(stdout, "Feed restored AGIT context") {
+			t.Errorf("checkout must not prompt, stdout: %q", stdout)
+		}
+		if strings.Contains(stderr, "warning") {
+			t.Errorf("no feed was attempted, so no warning is expected, stderr: %q", stderr)
+		}
+		assertBinaryCheckoutState(t, dir, head)
+	})
+}
+
+func buildAgitBinary(t *testing.T) string {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot locate the test source file")
+	}
+	root := filepath.Join(filepath.Dir(file), "..", "..")
+	out := filepath.Join(t.TempDir(), "agit")
+	cmd := exec.Command("go", "build", "-o", out, "./cmd/agit")
+	cmd.Dir = root
+	if combined, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("go build ./cmd/agit failed: %v\n%s", err, combined)
+	}
+	return out
+}
+
+func initBinaryTestRepo(t *testing.T) (string, string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	runGit := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, out)
+		}
+		return string(out)
+	}
+
+	runGit("init", "-q")
+	runGit("config", "user.email", "agit-test@example.com")
+	runGit("config", "user.name", "agit-test")
+	testutil.WriteFile(t, filepath.Join(dir, "feat.go"), "package x\n")
+	runGit("add", "feat.go")
+	runGit("commit", "-qm", "feature work")
+	head := strings.TrimSpace(runGit("rev-parse", "HEAD"))
+	noteFile := filepath.Join(dir, "note.json")
+	testutil.WriteFile(t, noteFile, testCheckoutNote)
+	runGit("notes", "--ref=agit", "add", "-F", noteFile, head)
+	if err := os.Remove(noteFile); err != nil {
+		t.Fatal(err)
+	}
+	runGit("checkout", "-qb", "other")
+	testutil.WriteFile(t, filepath.Join(dir, "other.go"), "package x\n")
+	runGit("add", "other.go")
+	runGit("commit", "-qm", "other work")
+	return dir, head
+}
+
+func runAgitBinary(t *testing.T, bin, dir string, args ...string) (string, string, error) {
+	t.Helper()
+
+	cmd := exec.Command(bin, args...)
+	cmd.Dir = dir
+	devNull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devNull.Close()
+	cmd.Stdin = devNull
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	return stdout.String(), stderr.String(), err
+}
+
+func assertBinaryCheckoutState(t *testing.T, dir, head string) {
+	t.Helper()
+
+	raw, err := os.ReadFile(filepath.Join(dir, ".agit", "state", "checkout.json"))
+	if err != nil {
+		t.Fatalf("checkout.json missing after checkout: %v", err)
+	}
+	var envelope RestoredCheckoutContext
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		t.Fatalf("checkout.json invalid: %v", err)
+	}
+	if envelope.Commit != head {
+		t.Errorf("restored commit = %q, want %q", envelope.Commit, head)
+	}
+}
+
+func writeFailingCodexStub(t *testing.T) {
+	t.Helper()
+
+	dir := t.TempDir()
+	script := "#!/bin/sh\necho codex feed failed >&2\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(dir, "codex"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() { os.Stderr = old }()
+
+	fn()
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
 }

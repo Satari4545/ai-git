@@ -102,6 +102,6 @@ func CheckoutFeedMode() string {
 	case "prompt":
 		return "prompt"
 	default:
-		return "prompt"
+		return "enabled"
 	}
 }
