@@ -151,6 +151,8 @@ func TestBridgeDispatchNoArgsPrintsUsage(t *testing.T) {
 
 func TestBridgeDispatchFeed(t *testing.T) {
 	dir := testutil.InitRepo(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", "")
 	stubDir := writeCodexStub(t, "")
 
 	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")
@@ -266,6 +268,8 @@ func TestActiveBridgeReadsConfig(t *testing.T) {
 
 func TestFeedCheckoutContextOrWarnUsesActiveBridge(t *testing.T) {
 	dir := testutil.InitRepo(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", "")
 	stubDir := writeCodexStub(t, "")
 	testutil.RunGit(t, dir, "config", "agit.bridge", "codex")
 

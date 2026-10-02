@@ -100,11 +100,11 @@ func BridgeExecutable(name string) (string, error) {
 
 const bridgeUsage = `usage: agit bridge list
        agit bridge <agent> install|provider|feed
-       agit bridge codex session set <id>|get|unset
-       agit bridge pi session set <id>|get|unset
-       agit bridge cursor session set <id>|get|unset
-       agit bridge gemini session set <id>|get|unset
-       agit bridge opencode session set <id>|get|unset
+       agit bridge codex session set <id>|get|unset|list
+       agit bridge pi session set <id>|get|unset|list
+       agit bridge cursor session set <id>|get|unset|list
+       agit bridge gemini session set <id>|get|unset|list
+       agit bridge opencode session set <id>|get|unset|list
        agit bridge claude-code hook`
 
 // Bridge implements `agit bridge`: generic verbs dispatch through the
@@ -190,9 +190,14 @@ func feedPromptContext(ctx *RestoredCheckoutContext) (string, error) {
 }
 
 // bridgeSessionCommand implements `agit bridge <agent> session
-// set <id>|get|unset`: it pins which live session Feed and the provider
+// set <id>|get|unset|list`: it pins which live session Feed and the provider
 // target, defaulting to the bridge's "latest session" flag when unset.
+// `list` shows the bridge's live sessions for the current repo.
 func bridgeSessionCommand(name string, displayName string, configKey string, latestFlag string, args []string) error {
+	if len(args) == 1 && args[0] == "list" {
+		return listBridgeSessions(name, displayName)
+	}
+
 	if len(args) == 2 && args[0] == "set" {
 		if err := gitwrapRunConfig(configKey, args[1]); err != nil {
 			return err
@@ -217,7 +222,7 @@ func bridgeSessionCommand(name string, displayName string, configKey string, lat
 		return nil
 	}
 
-	fmt.Printf("usage: agit bridge %s session set <id>|get|unset\n", name)
+	fmt.Printf("usage: agit bridge %s session set <id>|get|unset|list\n", name)
 	return nil
 }
 

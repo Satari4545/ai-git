@@ -165,6 +165,9 @@ func TestPiFeedPinnedSession(t *testing.T) {
 func TestPiFeedContinueFallback(t *testing.T) {
 	dir := testutil.InitRepo(t)
 	t.Setenv("AGIT_PI_SESSION_ID", "")
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("PI_CODING_AGENT_DIR", "")
+	t.Setenv("PI_CODING_AGENT_SESSION_DIR", "")
 	argsPath := writePiArgsStub(t, "")
 
 	head := testutil.CommitFile(t, dir, "feat.go", "package x", "feature work")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,7 +35,9 @@ func (codexBridge) Provide() ([]byte, error) {
 	return askCodexForContext()
 }
 
-// Feed delivers restored checkout context to the Codex session.
+// Feed delivers restored checkout context to the Codex session: the pinned
+// session when set, else the single live session for this repo, else the
+// most recent one (with a notice), else Codex's native --last.
 func (codexBridge) Feed(ctx *RestoredCheckoutContext) error {
 	prompt, err := feedPromptContext(ctx)
 	if err != nil {
@@ -42,14 +45,21 @@ func (codexBridge) Feed(ctx *RestoredCheckoutContext) error {
 	}
 
 	cmdArgs := []string{"exec", "resume"}
-	if sessionID := codexSessionID(); sessionID != "" {
+	sessionID, notice := resolveFeedSession(codexBridge{}, codexSessionID())
+	if sessionID != "" {
 		cmdArgs = append(cmdArgs, sessionID)
 	} else {
 		cmdArgs = append(cmdArgs, "--last")
 	}
 	cmdArgs = append(cmdArgs, prompt)
 
-	return runBridgeFeed(codexBridge{}, cmdArgs, []string{"AGIT_CODEX_CONTEXT_FEED=1"})
+	if err := runBridgeFeed(codexBridge{}, cmdArgs, []string{"AGIT_CODEX_CONTEXT_FEED=1"}); err != nil {
+		return err
+	}
+	if notice != "" {
+		fmt.Println(notice)
+	}
+	return nil
 }
 
 // askCodexForContext runs the provider prompt through Codex. Codex streams
@@ -145,4 +155,68 @@ func gitwrapUnsetConfig(key string) error {
 
 func codexSessionID() string {
 	return bridgeSessionID("AGIT_CODEX_SESSION_ID", "agit.codexSession")
+}
+
+// codexSessionsDir is the on-disk rollout store: $CODEX_HOME/sessions when
+// set, else ~/.codex/sessions. Files are rollout-*.jsonl, optionally nested
+// under YYYY/MM/DD.
+func codexSessionsDir() string {
+	if dir := os.Getenv("CODEX_HOME"); dir != "" {
+		return filepath.Join(dir, "sessions")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".codex", "sessions")
+}
+
+// ListSessions enumerates Codex sessions from the rollout store. The
+// session id and cwd come from the session_meta record; recency from file
+// mtime; the preview from the first user message. Unparseable files are
+// skipped, never fatal.
+func (codexBridge) ListSessions() ([]SessionInfo, error) {
+	var out []SessionInfo
+	err := walkSessionFiles(codexSessionsDir(), func(path string, d fs.DirEntry) {
+		if !strings.HasPrefix(d.Name(), "rollout-") {
+			return
+		}
+		if s, ok := readCodexSession(path, d); ok {
+			out = append(out, s)
+		}
+	})
+	return out, err
+}
+
+func readCodexSession(path string, d fs.DirEntry) (SessionInfo, bool) {
+	info, err := d.Info()
+	if err != nil {
+		return SessionInfo{}, false
+	}
+	var id, cwd, preview string
+	_ = scanJSONL(path, 128*1024, func(obj map[string]any) bool {
+		objType, _ := obj["type"].(string)
+		payload, _ := obj["payload"].(map[string]any)
+		switch objType {
+		case "session_meta":
+			if id == "" {
+				id, _ = payload["id"].(string)
+				if id == "" {
+					id, _ = payload["session_id"].(string)
+				}
+			}
+			if cwd == "" {
+				cwd, _ = payload["cwd"].(string)
+			}
+		case "event_msg":
+			if preview == "" && payload["type"] == "user_message" {
+				preview, _ = payload["message"].(string)
+			}
+		}
+		return id == "" || cwd == "" || preview == ""
+	})
+	if id == "" || cwd == "" {
+		return SessionInfo{}, false
+	}
+	return SessionInfo{ID: id, LastActive: info.ModTime(), Preview: singleLinePreview(preview), RepoPath: cwd}, true
 }

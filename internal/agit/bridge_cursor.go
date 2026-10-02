@@ -1,5 +1,7 @@
 package agit
 
+import "fmt"
+
 func init() {
 	RegisterBridge(cursorBridge{})
 	registerBridgeExecutable("cursor", cursorAgentExecutable)
@@ -39,14 +41,21 @@ func (cursorBridge) Feed(ctx *RestoredCheckoutContext) error {
 	}
 
 	cmdArgs := []string{"-p", "--trust", "--output-format", "text"}
-	if sessionID := cursorSessionID(); sessionID != "" {
+	sessionID, notice := resolveFeedSession(cursorBridge{}, cursorSessionID())
+	if sessionID != "" {
 		cmdArgs = append(cmdArgs, "--resume", sessionID)
 	} else {
 		cmdArgs = append(cmdArgs, "--continue")
 	}
 	cmdArgs = append(cmdArgs, prompt)
 
-	return runBridgeFeed(cursorBridge{}, cmdArgs, nil)
+	if err := runBridgeFeed(cursorBridge{}, cmdArgs, nil); err != nil {
+		return err
+	}
+	if notice != "" {
+		fmt.Println(notice)
+	}
+	return nil
 }
 
 func cursorAgentExecutable() string {

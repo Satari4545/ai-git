@@ -1,5 +1,12 @@
 package agit
 
+import (
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+)
+
 func init() {
 	RegisterBridge(piBridge{})
 	registerBridgeExecutable("pi", piExecutable)
@@ -40,7 +47,22 @@ func (piBridge) Feed(ctx *RestoredCheckoutContext) error {
 		return err
 	}
 
-	return runBridgeFeed(piBridge{}, piPromptArgs(prompt), []string{"PI_SKIP_VERSION_CHECK=1"})
+	args := []string{}
+	sessionID, notice := resolveFeedSession(piBridge{}, piSessionID())
+	if sessionID != "" {
+		args = append(args, "--session", sessionID)
+	} else {
+		args = append(args, "--continue")
+	}
+	args = append(args, "-p", prompt)
+
+	if err := runBridgeFeed(piBridge{}, args, []string{"PI_SKIP_VERSION_CHECK=1"}); err != nil {
+		return err
+	}
+	if notice != "" {
+		fmt.Println(notice)
+	}
+	return nil
 }
 
 // piPromptArgs builds the session-targeting prefix shared by Provide and
@@ -62,6 +84,79 @@ func piExecutable() string {
 
 func piSessionID() string {
 	return bridgeSessionID("AGIT_PI_SESSION_ID", "agit.piSession")
+}
+
+// piSessionsDir is Pi's on-disk session store: $PI_CODING_AGENT_SESSION_DIR
+// when set, else <agent dir>/sessions, honoring $PI_CODING_AGENT_DIR. Files
+// are <timestamp>_<uuid>.jsonl under --<cwd-slug>-- directories.
+func piSessionsDir() string {
+	if dir := os.Getenv("PI_CODING_AGENT_SESSION_DIR"); dir != "" {
+		return dir
+	}
+	agentDir, err := piAgentDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(agentDir, "sessions")
+}
+
+// ListSessions enumerates Pi sessions from the JSONL store. The session id
+// and cwd come from the {"type":"session"} header record; recency from
+// file mtime; the preview from the first user message. Unparseable files
+// are skipped, never fatal.
+func (piBridge) ListSessions() ([]SessionInfo, error) {
+	var out []SessionInfo
+	err := walkSessionFiles(piSessionsDir(), func(path string, d fs.DirEntry) {
+		if s, ok := readPiSession(path, d); ok {
+			out = append(out, s)
+		}
+	})
+	return out, err
+}
+
+func readPiSession(path string, d fs.DirEntry) (SessionInfo, bool) {
+	info, err := d.Info()
+	if err != nil {
+		return SessionInfo{}, false
+	}
+	var id, cwd, preview string
+	_ = scanJSONL(path, 128*1024, func(obj map[string]any) bool {
+		if id == "" && obj["type"] == "session" {
+			id, _ = obj["id"].(string)
+			cwd, _ = obj["cwd"].(string)
+		}
+		if preview == "" {
+			if p, ok := piUserPreview(obj); ok {
+				preview = p
+			}
+		}
+		return id == "" || cwd == "" || preview == ""
+	})
+	if id == "" || cwd == "" {
+		return SessionInfo{}, false
+	}
+	return SessionInfo{ID: id, LastActive: info.ModTime(), Preview: singleLinePreview(preview), RepoPath: cwd}, true
+}
+
+// piUserPreview extracts preview text from a user message record,
+// tolerating the content shapes Pi has used (plain string or text parts).
+func piUserPreview(obj map[string]any) (string, bool) {
+	if role, _ := obj["role"].(string); role != "user" {
+		return "", false
+	}
+	if s, ok := obj["content"].(string); ok && s != "" {
+		return s, true
+	}
+	if parts, ok := obj["content"].([]any); ok {
+		for _, p := range parts {
+			if pm, ok := p.(map[string]any); ok {
+				if t, _ := pm["text"].(string); t != "" {
+					return t, true
+				}
+			}
+		}
+	}
+	return "", false
 }
 
 func piContextPrompt() string {
