@@ -26,9 +26,9 @@ within 30 days.
 - **Your code stays yours.** ai-git stores context as git notes bound to your
   own commits; nothing is sent to any ai-git server (there is none).
 - **Supply chain.** Release binaries are built by GitHub Actions from tagged
-  source, published with SHA-256 checksums, and carry SLSA build provenance
-  attestations. The npm installer verifies the checksum and refuses to
-  install on mismatch.
+  source and published with SHA-256 checksums. The npm installer verifies the
+  checksum and refuses to install on mismatch. SLSA build provenance
+  attestations are added automatically when the repository plan supports them.
 - **Secrets.** ai-git redacts common secret patterns from recorded context
   before writing notes. Treat context notes with the same care as commit
   messages: they travel with your repo.

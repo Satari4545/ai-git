@@ -13,7 +13,6 @@ jobs:
     name: Build release binaries
     runs-on: ubuntu-latest
     permissions:
-      contents: write
       attestations: write
       id-token: write
     strategy:
@@ -58,6 +57,7 @@ jobs:
         run: sha256sum "dist/${{ matrix.output }}" > "dist/${{ matrix.output }}.sha256"
 
       - name: Attest build provenance
+        if: github.repository_visibility == 'public'
         uses: actions/attest-build-provenance@v1
         with:
           subject-path: "dist/${{ matrix.output }}"
