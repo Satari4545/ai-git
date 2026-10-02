@@ -7,13 +7,11 @@ import (
 	gitwrap "github.com/Satari4545/ai-git/internal/git"
 )
 
-// NotesRef is the git notes ref agit uses for context payloads.
 const NotesRef = "refs/notes/agit"
 
-// Fetch runs git fetch with the given args, then fetches the agit notes ref
-// from the same remote. Plain `git fetch` does not fetch notes refs unless
-// the refspec is configured, so without this step context notes never reach
-// the receiving machine and the multi-agent handoff loop breaks there.
+// Plain `git fetch` never fetches refs/notes/agit unless the refspec is
+// configured; without the explicit notes fetch below, context notes silently
+// never reach the receiving machine and the handoff loop breaks there.
 func Fetch(args []string) error {
 	if err := gitwrap.Run(append([]string{"fetch"}, args...)...); err != nil {
 		return err
@@ -21,8 +19,6 @@ func Fetch(args []string) error {
 	return fetchNotes(firstNonFlagArg(args))
 }
 
-// Pull runs git pull with the given args, then fetches the agit notes ref
-// from the same remote so context notes stay in sync with pulled commits.
 func Pull(args []string) error {
 	if err := gitwrap.Run(append([]string{"pull"}, args...)...); err != nil {
 		return err
@@ -53,8 +49,7 @@ func firstNonFlagArg(args []string) string {
 	return "origin"
 }
 
-// fetchNotes fetches NotesRef from remote. A remote that has never seen agit
-// notes is not an error: it just means there is no context to restore yet.
+// A remote with no agit notes is not an error: it means no context exists yet.
 func fetchNotes(remote string) error {
 	fmt.Println("agit: fetching logic notes")
 	out, err := gitwrap.OutputQuiet("ls-remote", remote, NotesRef)
