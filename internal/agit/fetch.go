@@ -34,8 +34,6 @@ func Pull(args []string) error {
 // next arg is not the remote name.
 var valueFlags = map[string]bool{"--depth": true, "--deepen": true}
 
-// firstNonFlagArg returns the first arg that is not a flag, which for fetch
-// and pull is the remote name. Defaults to "origin".
 func firstNonFlagArg(args []string) string {
 	skipNext := false
 	for _, a := range args {
