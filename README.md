@@ -8,6 +8,8 @@ The intended flow is:
 2. `agit commit` captures the staged Git state.
 3. ai-git commits normally, embeds an `Agit-Context-ID` trailer when a commit message is available, and attaches the full context payload as a Git note under `refs/notes/agit`.
 
+New here? Start with [QUICKSTART.md](QUICKSTART.md): 5 minutes to your first agent-to-agent handoff.
+
 ## Why This Exists
 
 Commit messages and PR descriptions are useful for humans, but they usually lose the working context an AI coding agent had while making the change. ai-git adds a machine-readable context layer for agents and tools: intent, active files, planned delta, actual delta, decisions, risks, next steps, and branch context.
@@ -42,6 +44,12 @@ sudo mv agit /usr/local/bin/agit
 Homebrew support should be added after the first tagged release, once release asset checksums are available. A formula template lives at `packaging/homebrew/agit.rb.template`.
 
 ## Usage
+
+Set up a repo (wires the notes refspec and prints the handoff loop):
+
+```sh
+agit init
+```
 
 Build the CLI:
 
@@ -210,6 +218,18 @@ Push commits and ai-git notes:
 
 ```sh
 agit push
+```
+
+Fetch commits and ai-git notes (plain `git fetch` also carries notes after `agit init`, but `agit fetch` works regardless):
+
+```sh
+agit fetch
+```
+
+Pull commits, then fetch ai-git notes:
+
+```sh
+agit pull
 ```
 
 ## MCP Setup
