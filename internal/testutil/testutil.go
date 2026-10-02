@@ -1,6 +1,4 @@
-// Package testutil provides shared helpers for tests that need throwaway git
-// repositories. It lives in its own package so both internal/agit and
-// internal/state tests can use the same helpers without duplicating them.
+// Shared test helpers live here so packages do not duplicate them.
 package testutil
 
 import (
@@ -11,8 +9,6 @@ import (
 	"testing"
 )
 
-// RunGit runs git with args in dir, failing the test on error, and returns the
-// combined output.
 func RunGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 
@@ -25,12 +21,7 @@ func RunGit(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
-// InitRepo creates a temp git repo with a test identity, chdirs into it
-// (restoring the original working directory on test cleanup), and returns its
-// path.
-//
-// Because it changes the process working directory, tests that use InitRepo
-// must not use t.Parallel: they share the process cwd.
+// InitRepo chdirs the process: tests using it must not use t.Parallel.
 func InitRepo(t *testing.T) string {
 	t.Helper()
 
@@ -63,7 +54,6 @@ func InitRepo(t *testing.T) string {
 	return dir
 }
 
-// WriteFile writes content to path, creating parent directories as needed.
 func WriteFile(t *testing.T, path, content string) {
 	t.Helper()
 
@@ -75,7 +65,6 @@ func WriteFile(t *testing.T, path, content string) {
 	}
 }
 
-// StageFile writes content to dir/path and stages it with git add.
 func StageFile(t *testing.T, dir, path, content string) {
 	t.Helper()
 
@@ -83,8 +72,6 @@ func StageFile(t *testing.T, dir, path, content string) {
 	RunGit(t, dir, "add", path)
 }
 
-// CommitFile writes content to dir/path, commits it, and returns the new
-// commit SHA.
 func CommitFile(t *testing.T, dir, path, content, message string) string {
 	t.Helper()
 
