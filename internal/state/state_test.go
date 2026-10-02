@@ -51,7 +51,6 @@ func TestCaptureWithStagedChanges(t *testing.T) {
 		t.Errorf("contextID %q does not match ctx_sha256:<64 hex>", contextID)
 	}
 
-	// The raw payload must be self-consistent JSON carrying the same ID.
 	var decoded map[string]any
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatalf("raw payload is not valid JSON: %v", err)
@@ -108,8 +107,6 @@ func TestCaptureContextIDBindsToContent(t *testing.T) {
 		t.Error("different intents produced the same context ID; the ID must bind to content")
 	}
 
-	// The ID must be the SHA-256 of the canonical (compact) JSON payload
-	// Capture hashes, not just a unique-per-call value.
 	for i, tc := range []struct {
 		delta *LogicDelta
 		id    string

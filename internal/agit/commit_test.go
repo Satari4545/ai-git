@@ -88,9 +88,9 @@ func TestHasCommitMessage(t *testing.T) {
 		{[]string{"--message", "msg"}, true},
 		{[]string{"-mmsg"}, true},
 		{[]string{"--message=msg"}, true},
-		{[]string{"-m"}, false},        // flag without value
-		{[]string{"--message"}, false}, // flag without value
-		{[]string{"--amend"}, false},   // similar prefix, not a message
+		{[]string{"-m"}, false},
+		{[]string{"--message"}, false},
+		{[]string{"--amend"}, false},
 		{nil, false},
 	}
 
@@ -187,15 +187,7 @@ func TestHasAgitFlag(t *testing.T) {
 	}
 }
 
-// TestCommitAttachesTrailerAndNote exercises the full Commit wiring: it must
-// embed the Agit-Context-ID trailer in the commit message and attach a
-// refs/notes/agit note to HEAD carrying the same ID bound to the captured
-// payload.
 func TestCommitAttachesTrailerAndNote(t *testing.T) {
-	// Commit refreshes from the provider before honoring
-	// --allow-missing-context, and the provider is driven by
-	// AGIT_CONTEXT_COMMAND. Clear it so this test stays hermetic even
-	// where that variable is set in the ambient environment.
 	t.Setenv("AGIT_CONTEXT_COMMAND", "")
 
 	dir := testutil.InitRepo(t)
@@ -232,7 +224,6 @@ func TestCommitAttachesTrailerAndNote(t *testing.T) {
 		t.Errorf("note contextID %q does not match commit trailer %q", note.ContextID, trailerID)
 	}
 
-	// The ID must bind to the payload the note carries.
 	var delta state.LogicDelta
 	if err := json.Unmarshal(note.LogicState, &delta); err != nil {
 		t.Fatalf("note logicState is not a valid logic delta: %v", err)

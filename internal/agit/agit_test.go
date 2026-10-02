@@ -8,8 +8,6 @@ import (
 	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
-// addAgitNote attaches raw JSON as an AGIT note to the given commit,
-// using the exact ref the product reads and writes.
 func addAgitNote(t *testing.T, dir, commit, noteJSON string) {
 	t.Helper()
 

@@ -176,7 +176,6 @@ func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 	testutil.RunGit(t, dir, "checkout", "-qb", "other")
 	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
 
-	// --feed-context feeds through the active bridge without prompting.
 	if err := Checkout([]string{"--feed-context", "-q", "-"}); err != nil {
 		t.Fatalf("Checkout failed: %v", err)
 	}
