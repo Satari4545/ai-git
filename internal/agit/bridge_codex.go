@@ -50,7 +50,7 @@ func (codexBridge) Feed(ctx *RestoredCheckoutContext) error {
 		return err
 	}
 
-	prompt := "The user just checked out a branch. Read this ai-git restored checkout context and use it as working context for future coding help. Do not summarize it back unless asked.\n\n" + string(raw)
+	prompt := checkoutFeedPrompt(raw)
 	cmdArgs := []string{"exec", "resume"}
 	if sessionID := codexSessionID(); sessionID != "" {
 		cmdArgs = append(cmdArgs, sessionID)
@@ -213,10 +213,5 @@ func gitwrapUnsetConfig(key string) error {
 }
 
 func codexSessionID() string {
-	if sessionID := os.Getenv("AGIT_CODEX_SESSION_ID"); sessionID != "" {
-		return sessionID
-	}
-
-	sessionID, _ := gitwrapOutputConfig("agit.codexSession")
-	return sessionID
+	return bridgeSessionID("AGIT_CODEX_SESSION_ID", "agit.codexSession")
 }
