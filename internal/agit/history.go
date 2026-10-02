@@ -9,15 +9,13 @@ import (
 )
 
 const (
-	// defaultHistoryCount is used when the caller does not specify a count.
 	defaultHistoryCount = 10
-	// maxHistoryCount caps history reads so a single query cannot dump an
-	// unbounded number of notes into an agent's context window.
+	// A single query must never dump an unbounded number of notes into an
+	// agent's context window.
 	maxHistoryCount = 50
 )
 
-// HistoryEntry is one commit's AGIT context, for agent consumption.
-// Only commits that carry a readable AGIT note appear here.
+// Only commits carrying a readable AGIT note appear here; the rest are skipped.
 type HistoryEntry struct {
 	Commit    string   `json:"commit"`
 	Short     string   `json:"short"`
@@ -30,12 +28,7 @@ type HistoryEntry struct {
 	NextSteps []string `json:"nextSteps,omitempty"`
 }
 
-// GetHistory returns AGIT context entries for branch, newest first.
-// Only commits carrying a readable AGIT note are included.
-//
-// n must be positive and is capped at maxHistoryCount. An empty branch
-// means the current branch. An empty since means no date filter; otherwise
-// since is passed to `git log --since` (e.g. "yesterday", "2026-09-01").
+// Entries come back newest first. An empty branch means the current branch.
 func GetHistory(n int, branch string, since string) ([]HistoryEntry, error) {
 	count, err := normalizeHistoryCount(n)
 	if err != nil {
