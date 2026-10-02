@@ -114,7 +114,7 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
-			fmt.Println("usage: agit mcp record-context|get-context|serve|install <codex|claude|pi|cursor|gemini>")
+			fmt.Println("usage: agit mcp record-context|get-context|serve|install <codex|claude|pi|cursor|gemini|opencode>")
 		}
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {
@@ -146,7 +146,7 @@ Usage:
   agit mcp record-context --intent <summary> [--message <message>]
   agit mcp get-context
   agit mcp serve
-  agit mcp install <codex|claude|pi>
+  agit mcp install <codex|claude|pi|cursor|gemini|opencode>
 
 Commands:
   init                Set up this repo for agit and show the quickstart.

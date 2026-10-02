@@ -21,8 +21,10 @@ func MCPInstall(target string) error {
 		return installCursor()
 	case "gemini":
 		return installGemini()
+	case "opencode":
+		return installOpencode()
 	default:
-		return fmt.Errorf("unsupported MCP target: %s (supported: codex, claude, pi, cursor, gemini)", target)
+		return fmt.Errorf("unsupported MCP target: %s (supported: codex, claude, pi, cursor, gemini, opencode)", target)
 	}
 }
 
@@ -155,6 +157,45 @@ func installGemini() error {
 // overwritten. extraFields adds client-specific entry keys, such as Pi's
 // description.
 func installJSONMCPTarget(displayName string, configPath string, extraFields map[string]any) error {
+	entry := map[string]any{"command": "agit", "args": []string{"mcp", "serve"}}
+	for k, v := range extraFields {
+		entry[k] = v
+	}
+	return mergeMCPServerConfig(displayName, configPath, "mcpServers", entry)
+}
+
+func installOpencode() error {
+	configPath, err := opencodeConfigPath()
+	if err != nil {
+		return err
+	}
+	return mergeMCPServerConfig("OpenCode", configPath, "mcp", map[string]any{
+		"type":    "local",
+		"command": []string{"agit", "mcp", "serve"},
+		"enabled": true,
+	})
+}
+
+// opencodeConfigPath resolves OpenCode's user-level config file. OpenCode
+// reads one config format per directory, so an existing opencode.jsonc
+// wins over creating a new opencode.json beside it that would be ignored.
+func opencodeConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(home, ".config", "opencode")
+	if _, err := os.Stat(filepath.Join(dir, "opencode.jsonc")); err == nil {
+		return filepath.Join(dir, "opencode.jsonc"), nil
+	}
+	return filepath.Join(dir, "opencode.json"), nil
+}
+
+// mergeMCPServerConfig merges the agit server entry into configPath under
+// serversKey ("mcpServers" for most clients, "mcp" for OpenCode). Existing
+// entries are preserved, the install is idempotent, and a corrupt file (or
+// a non-object servers value) is an error rather than silently overwritten.
+func mergeMCPServerConfig(displayName string, configPath string, serversKey string, entry map[string]any) error {
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return err
 	}
@@ -174,22 +215,18 @@ func installJSONMCPTarget(displayName string, configPath string, extraFields map
 		return err
 	}
 
-	servers, ok := config["mcpServers"].(map[string]any)
+	servers, ok := config[serversKey].(map[string]any)
 	if !ok {
-		if v, exists := config["mcpServers"]; exists && v != nil {
-			return fmt.Errorf("your %s has a \"mcpServers\" value that is not an object; fix it or move it aside, then re-run install", configPath)
+		if v, exists := config[serversKey]; exists && v != nil {
+			return fmt.Errorf("your %s has a %q value that is not an object; fix it or move it aside, then re-run install", configPath, serversKey)
 		}
 		servers = map[string]any{}
-		config["mcpServers"] = servers
+		config[serversKey] = servers
 	}
 	if _, exists := servers["agit"]; exists {
 		fmt.Printf("agit MCP server already configured for %s.\n", displayName)
 		fmt.Println("Config:", configPath)
 		return nil
-	}
-	entry := map[string]any{"command": "agit", "args": []string{"mcp", "serve"}}
-	for k, v := range extraFields {
-		entry[k] = v
 	}
 	servers["agit"] = entry
 

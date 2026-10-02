@@ -211,7 +211,7 @@ func TestMCPInstallUnsupportedTarget(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	err := MCPInstall("windsurf")
-	if err == nil || !strings.Contains(err.Error(), "supported: codex, claude, pi, cursor, gemini") {
+	if err == nil || !strings.Contains(err.Error(), "supported: codex, claude, pi, cursor, gemini, opencode") {
 		t.Errorf("expected supported-targets error, got: %v", err)
 	}
 }
