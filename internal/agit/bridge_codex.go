@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -26,16 +25,7 @@ func (codexBridge) Name() string        { return "codex" }
 func (codexBridge) DisplayName() string { return "Codex" }
 
 func (codexBridge) Install() error {
-	if err := gitwrapRunConfig("agit.contextCommand", "agit bridge codex provider"); err != nil {
-		return err
-	}
-	if err := gitwrapRunConfig("agit.bridge", "codex"); err != nil {
-		return err
-	}
-
-	fmt.Println("agit: Codex context provider configured")
-	fmt.Println("agit: run 'agit mcp install codex' so Codex can also restore/read context through MCP")
-	return nil
+	return installBridgeProvider(codexBridge{})
 }
 
 // Provide asks the Codex session for fresh context JSON. The response is
@@ -59,24 +49,12 @@ func (codexBridge) Feed(ctx *RestoredCheckoutContext) error {
 	}
 	cmdArgs = append(cmdArgs, prompt)
 
-	cmd := exec.Command(codexExecutable(), cmdArgs...)
-	cmd.Env = append(os.Environ(), "AGIT_CODEX_CONTEXT_FEED=1")
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = err.Error()
-		}
-		return fmt.Errorf("Codex checkout feed failed: %s", message)
-	}
-
-	fmt.Println("agit: fed checkout context to Codex")
-	return nil
+	return runBridgeFeed(codexBridge{}, cmdArgs, []string{"AGIT_CODEX_CONTEXT_FEED=1"})
 }
 
+// askCodexForContext runs the provider prompt through Codex. Codex streams
+// session chatter to stdout, so the model's answer is captured via
+// --output-last-message into a temp file instead of the process output.
 func askCodexForContext() ([]byte, error) {
 	tmp, err := os.CreateTemp("", "agit-codex-context-*.json")
 	if err != nil {
@@ -117,29 +95,11 @@ func askCodexForContext() ([]byte, error) {
 }
 
 func codexExecutable() string {
-	if runtime.GOOS == "windows" {
-		return "codex.cmd"
-	}
-	return "codex"
+	return bridgeExecutableName("codex", ".cmd")
 }
 
 func codexContextPrompt() string {
-	return `Return ONLY a JSON object for ai-git agent context. Do not include markdown or commentary.
-
-Use this schema:
-{
-  "provider": "codex",
-  "intent": "short task intent",
-  "message": "suggested git commit message",
-  "files": ["path/to/file"],
-  "planned": "planned change summary",
-  "actual": "actual change summary",
-  "decisions": ["important decision"],
-  "risks": ["risk or caveat"],
-  "nextSteps": ["useful next step"]
-}
-
-Use the current Codex session and current repository state. Do not include hidden chain-of-thought. Keep values concise and auditable.`
+	return bridgeContextPrompt("codex", "Use the current Codex session and current repository state.")
 }
 
 func extractJSONObject(raw []byte) ([]byte, error) {

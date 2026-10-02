@@ -1,9 +1,12 @@
 package agit
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -252,4 +255,112 @@ func bridgeSessionID(envKey, configKey string) string {
 
 	sessionID, _ := gitwrapOutputConfig(configKey)
 	return sessionID
+}
+
+// bridgeExecutableName returns the platform-specific executable name for a
+// bridge CLI, appending the Windows extension when needed.
+func bridgeExecutableName(stem, windowsExt string) string {
+	if runtime.GOOS == "windows" {
+		return stem + windowsExt
+	}
+	return stem
+}
+
+// installBridgeProvider wires the standard bridge install: the provider
+// command and bridge selection in git config, plus the MCP follow-up hint.
+// Bridges with extra install steps (Claude Code's SessionStart hook) keep
+// their own Install.
+func installBridgeProvider(b AgentBridge) error {
+	if err := gitwrapRunConfig("agit.contextCommand", "agit bridge "+b.Name()+" provider"); err != nil {
+		return err
+	}
+	if err := gitwrapRunConfig("agit.bridge", b.Name()); err != nil {
+		return err
+	}
+
+	fmt.Printf("agit: %s context provider configured\n", b.DisplayName())
+	fmt.Printf("agit: run 'agit mcp install %s' so %s can also restore/read context through MCP\n", mcpInstallTarget(b.Name()), b.DisplayName())
+	return nil
+}
+
+// runBridgeFeed runs the bridge CLI to deliver restored checkout context
+// to a live session. extraEnv entries are appended to the process
+// environment. The success signal is the exit code, not stdout: feed
+// prompts ask the model to stay quiet, and anything the CLI prints around
+// the model turn (version checks, session banners) is noise, so stderr is
+// only surfaced when the command fails.
+func runBridgeFeed(b AgentBridge, args []string, extraEnv []string) error {
+	executable, err := BridgeExecutable(b.Name())
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(executable, args...)
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return fmt.Errorf("%s checkout feed failed: %s", b.DisplayName(), message)
+	}
+
+	fmt.Printf("agit: fed checkout context to %s\n", b.DisplayName())
+	return nil
+}
+
+// runBridgeProvide runs the bridge CLI to ask for fresh context JSON and
+// returns its stdout for the caller to parse. extraEnv entries are appended
+// to the process environment.
+func runBridgeProvide(b AgentBridge, args []string, extraEnv []string) ([]byte, error) {
+	executable, err := BridgeExecutable(b.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command(executable, args...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
+
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return nil, fmt.Errorf("%s context bridge failed: %s", b.DisplayName(), message)
+	}
+
+	return stdout.Bytes(), nil
+}
+
+// bridgeContextPrompt renders the standard commit-time context prompt,
+// stamped with the bridge's provider name. repoState describes which
+// session/repo state the model should read; it varies slightly per bridge.
+func bridgeContextPrompt(provider, repoState string) string {
+	return `Return ONLY a JSON object for ai-git agent context. Do not include markdown or commentary.
+
+Use this schema:
+{
+  "provider": "` + provider + `",
+  "intent": "short task intent",
+  "message": "suggested git commit message",
+  "files": ["path/to/file"],
+  "planned": "planned change summary",
+  "actual": "actual change summary",
+  "decisions": ["important decision"],
+  "risks": ["risk or caveat"],
+  "nextSteps": ["useful next step"]
+}
+
+` + repoState + ` Do not include hidden chain-of-thought. Keep values concise and auditable.`
 }

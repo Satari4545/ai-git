@@ -126,6 +126,8 @@ If multiple Codex sessions exist, pin the bridge to the right one:
 agit bridge codex session set <session-id>
 ```
 
+With no session pinned, the Codex bridge uses `codex exec resume --last`.
+
 ### Claude Code
 
 ```sh
@@ -155,7 +157,54 @@ model turn, and persists it to the session file. Pin the target session
 with `agit bridge pi session set <session-id>`; with no session pinned,
 Pi's `--continue` resumes the most recent one.
 
-If no session is configured, the Codex bridge uses `codex exec resume --last`.
+### Cursor
+
+```sh
+agit bridge cursor install
+agit mcp install cursor
+```
+
+This wires `agit commit` to ask the Cursor agent for context JSON via
+`cursor-agent -p --trust --output-format text`, and selects the bridge. After
+`agit checkout` restores context, `agit bridge cursor feed` (or the automatic
+`--feed-context` flow) injects it into the Cursor session via
+`cursor-agent --resume <id>`, falling back to `--continue` for the previous
+session. Pin the target session with
+`agit bridge cursor session set <session-id>`.
+
+### Gemini CLI
+
+```sh
+agit bridge gemini install
+agit mcp install gemini
+```
+
+This wires `agit commit` to ask the Gemini CLI for context JSON via
+`gemini -p --output-format text`, and selects the bridge. After
+`agit checkout` restores context, `agit bridge gemini feed` (or the automatic
+`--feed-context` flow) injects it into the Gemini session via
+`gemini --resume <id>`, falling back to `--resume latest`. Pin the target
+session with `agit bridge gemini session set <session-id>`.
+
+### OpenCode
+
+```sh
+agit bridge opencode install
+agit mcp install opencode
+```
+
+This wires `agit commit` to ask OpenCode for context JSON via
+`opencode run`, and selects the bridge. After `agit checkout` restores
+context, `agit bridge opencode feed` (or the automatic `--feed-context`
+flow) injects it into the OpenCode session via
+`opencode run --session <id>`, falling back to `--continue` for the most
+recent session. Pin the target session with
+`agit bridge opencode session set <session-id>`.
+
+The MCP install writes OpenCode's native schema (the `"mcp"` key with
+`"type": "local"` and an array `command`) to
+`~/.config/opencode/opencode.json`, preferring an existing
+`opencode.jsonc` in that directory.
 
 Checkout feed is automatic by default: it feeds the restored context to
 the configured agent bridge without prompting. A failed feed only prints a
