@@ -77,6 +77,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "agit push error:", err)
 			os.Exit(1)
 		}
+	case "fetch":
+		if err := agit.Fetch(args); err != nil {
+			fmt.Fprintln(os.Stderr, "agit fetch error:", err)
+			os.Exit(1)
+		}
+	case "pull":
+		if err := agit.Pull(args); err != nil {
+			fmt.Fprintln(os.Stderr, "agit pull error:", err)
+			os.Exit(1)
+		}
 	case "mcp":
 		if len(args) > 0 && args[0] == "record-context" {
 			if err := agit.AgentWrite(args[1:]); err != nil {
@@ -124,6 +134,8 @@ Usage:
   agit config context-timeout <seconds>
   agit config context-provider set <command>
   agit push [git push args...]
+  agit fetch [git fetch args...]
+  agit pull [git pull args...]
   agit debug
   agit mcp record-context --intent <summary> [--message <message>]
   agit mcp get-context
@@ -138,6 +150,8 @@ Commands:
   bridge              Configure provider bridges for coding agents.
   config              Configure AGIT behavior for this repo.
   push                Push Git commits, then push AGIT Git notes.
+  fetch               Fetch Git refs, then fetch AGIT Git notes.
+  pull                Pull Git refs, then fetch AGIT Git notes.
   debug               Show the AGIT note attached to HEAD.
   mcp record-context  Record coding-agent context for the next commit.
   mcp get-context     Print context restored by the last AGIT checkout.

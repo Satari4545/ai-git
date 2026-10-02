@@ -18,7 +18,7 @@ func Push(args []string) error {
 
 	fmt.Println("agit: pushing logic notes")
 
-	if err := gitwrap.Run("push", remote, "refs/notes/agit"); err != nil {
+	if err := gitwrap.Run("push", remote, NotesRef); err != nil {
 		return err
 	}
 
