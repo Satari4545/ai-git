@@ -153,7 +153,7 @@ Usage:
   agit mcp record-context --intent <summary> [--message <message>]
   agit mcp get-context
   agit mcp serve
-  agit mcp install <codex|claude|pi|cursor|gemini|opencode>
+  agit mcp install <` + strings.Join(agit.MCPInstallTargets(), "|") + `>
 
 Commands:
   init                Set up this repo for agit and show the quickstart.
