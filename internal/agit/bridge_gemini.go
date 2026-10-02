@@ -70,7 +70,7 @@ func (geminiBridge) Feed(ctx *RestoredCheckoutContext) error {
 	if sessionID := geminiSessionID(); sessionID != "" {
 		cmdArgs = append(cmdArgs, "--resume", sessionID)
 	} else {
-		cmdArgs = append(cmdArgs, "--resume")
+		cmdArgs = append(cmdArgs, "--resume", "latest")
 	}
 	cmdArgs = append(cmdArgs, prompt)
 
