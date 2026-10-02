@@ -38,10 +38,14 @@ func Checkout(args []string) error {
 		if err != nil {
 			return err
 		}
-		if shouldFeed {
-			if err := FeedCodexCheckoutContext(); err != nil {
-				return err
-			}
+		if !shouldFeed {
+			// Feed declined: don't leave feedable state behind for
+			// agent hooks or manual feed verbs.
+			_ = os.Remove(checkoutStatePath())
+			return nil
+		}
+		if err := feedCheckoutContext(); err != nil {
+			return err
 		}
 	} else {
 		fmt.Println("agit: no AGIT context note found on HEAD")
@@ -87,7 +91,11 @@ func ShouldFeedCheckoutContext(feedOverride string) (bool, error) {
 }
 
 func promptForCheckoutFeed() (bool, error) {
-	fmt.Print("Feed restored AGIT context to Codex? [y/N] ")
+	name := "your agent"
+	if b, err := ActiveBridge(); err == nil {
+		name = b.DisplayName()
+	}
+	fmt.Printf("Feed restored AGIT context to %s? [y/N] ", name)
 
 	reader := bufio.NewReader(os.Stdin)
 	answer, err := reader.ReadString('\n')
@@ -107,6 +115,9 @@ func RestoreHEADContext() (bool, error) {
 
 	note, err := gitwrap.OutputQuiet("notes", "--ref=agit", "show", head)
 	if err != nil || note == "" {
+		// No note: clear any stale restored state so later reads
+		// (manual feed verbs, agent hooks) never see a previous checkout.
+		_ = os.Remove(checkoutStatePath())
 		return false, nil
 	}
 
@@ -134,7 +145,7 @@ func RestoreHEADContext() (bool, error) {
 		return false, err
 	}
 
-	path := filepath.Join(".agit", "state", "checkout.json")
+	path := checkoutStatePath()
 	if err := os.WriteFile(path, raw, 0644); err != nil {
 		return false, err
 	}
@@ -142,8 +153,16 @@ func RestoreHEADContext() (bool, error) {
 	return true, nil
 }
 
+// checkoutStatePath is the well-known location of the restored checkout
+// context. The file exists if and only if the last checkout restored a
+// note and feeding was approved, so hooks and manual feed verbs can
+// treat its presence as the feed decision.
+func checkoutStatePath() string {
+	return filepath.Join(".agit", "state", "checkout.json")
+}
+
 func LoadCheckoutContextRaw() ([]byte, bool, error) {
-	path := filepath.Join(".agit", "state", "checkout.json")
+	path := checkoutStatePath()
 
 	raw, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
@@ -154,6 +173,25 @@ func LoadCheckoutContextRaw() ([]byte, bool, error) {
 	}
 
 	return raw, true, nil
+}
+
+// LoadCheckoutContext returns the restored checkout context as a struct.
+// It errors when nothing was restored, so feeders can report that instead
+// of silently doing nothing.
+func LoadCheckoutContext() (*RestoredCheckoutContext, error) {
+	raw, ok, err := LoadCheckoutContextRaw()
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("no checkout context restored; run agit checkout on a commit with AGIT notes first")
+	}
+
+	var ctx RestoredCheckoutContext
+	if err := json.Unmarshal(raw, &ctx); err != nil {
+		return nil, fmt.Errorf("invalid checkout context: %w", err)
+	}
+	return &ctx, nil
 }
 
 func PrintCheckoutContext() error {

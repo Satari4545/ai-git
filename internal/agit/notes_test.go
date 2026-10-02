@@ -9,7 +9,6 @@ import (
 	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
-
 const testNoteJSON = `{
   "contextID": "ctx_sha256:noteref123",
   "logicState": {
