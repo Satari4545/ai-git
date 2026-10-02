@@ -45,12 +45,11 @@ func (codexBridge) Provide() ([]byte, error) {
 
 // Feed delivers restored checkout context to the Codex session.
 func (codexBridge) Feed(ctx *RestoredCheckoutContext) error {
-	raw, err := json.MarshalIndent(ctx, "", "  ")
+	prompt, err := feedPromptContext(ctx)
 	if err != nil {
 		return err
 	}
 
-	prompt := checkoutFeedPrompt(raw)
 	cmdArgs := []string{"exec", "resume"}
 	if sessionID := codexSessionID(); sessionID != "" {
 		cmdArgs = append(cmdArgs, sessionID)
@@ -74,35 +73,6 @@ func (codexBridge) Feed(ctx *RestoredCheckoutContext) error {
 	}
 
 	fmt.Println("agit: fed checkout context to Codex")
-	return nil
-}
-
-func codexBridgeSession(args []string) error {
-	if len(args) == 2 && args[0] == "set" {
-		if err := gitwrapRunConfig("agit.codexSession", args[1]); err != nil {
-			return err
-		}
-		fmt.Println("agit: Codex session configured")
-		return nil
-	}
-
-	if len(args) == 1 && args[0] == "get" {
-		sessionID, _ := gitwrapOutputConfig("agit.codexSession")
-		if sessionID == "" {
-			fmt.Println("No Codex session configured. Provider will use --last.")
-			return nil
-		}
-		fmt.Println(sessionID)
-		return nil
-	}
-
-	if len(args) == 1 && args[0] == "unset" {
-		_ = gitwrapUnsetConfig("agit.codexSession")
-		fmt.Println("agit: Codex session unset")
-		return nil
-	}
-
-	fmt.Println("usage: agit bridge codex session set <id>|get|unset")
 	return nil
 }
 

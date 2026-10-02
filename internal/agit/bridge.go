@@ -79,6 +79,7 @@ const bridgeUsage = `usage: agit bridge list
        agit bridge <agent> install|provider|feed
        agit bridge codex session set <id>|get|unset
        agit bridge pi session set <id>|get|unset
+       agit bridge cursor session set <id>|get|unset
        agit bridge claude-code hook`
 
 // Bridge implements `agit bridge`: generic verbs dispatch through the
@@ -98,14 +99,18 @@ func Bridge(args []string) error {
 
 	name := args[0]
 
-	// Codex session management predates the registry; keep it working.
-	if name == "codex" && len(args) > 1 && args[1] == "session" {
-		return codexBridgeSession(args[2:])
-	}
-
-	// Pi session management mirrors codex: pin the target Pi session.
-	if name == "pi" && len(args) > 1 && args[1] == "session" {
-		return piBridgeSession(args[2:])
+	// Session management for bridges whose CLI can inject into a live
+	// session (codex, cursor, pi). Each keeps its own git config key
+	// and env override, so the verb stays agent-scoped.
+	if len(args) > 1 && args[1] == "session" {
+		switch name {
+		case "codex":
+			return bridgeSessionCommand(name, "Codex", "agit.codexSession", "--last", args[2:])
+		case "cursor":
+			return bridgeSessionCommand(name, "Cursor", "agit.cursorSession", "--continue", args[2:])
+		case "pi":
+			return bridgeSessionCommand(name, "Pi", "agit.piSession", "--continue", args[2:])
+		}
 	}
 
 	// The Claude Code SessionStart hook entry point.
@@ -144,6 +149,49 @@ func feedViaBridge(b AgentBridge) error {
 	return b.Feed(ctx)
 }
 
+// feedPromptContext renders the checkout context as the prompt used by
+// bridges that inject it into a live agent session.
+func feedPromptContext(ctx *RestoredCheckoutContext) (string, error) {
+	raw, err := json.MarshalIndent(ctx, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return "The user just checked out a branch. Read this ai-git restored checkout context and use it as working context for future coding help. Do not summarize it back unless asked.\n\n" + string(raw), nil
+}
+
+// bridgeSessionCommand implements `agit bridge <agent> session
+// set <id>|get|unset`: it pins which live session Feed and the provider
+// target, defaulting to the bridge's "latest session" flag when unset.
+func bridgeSessionCommand(name string, displayName string, configKey string, latestFlag string, args []string) error {
+	if len(args) == 2 && args[0] == "set" {
+		if err := gitwrapRunConfig(configKey, args[1]); err != nil {
+			return err
+		}
+		fmt.Printf("agit: %s session configured\n", displayName)
+		return nil
+	}
+
+	if len(args) == 1 && args[0] == "get" {
+		sessionID, _ := gitwrapOutputConfig(configKey)
+		if sessionID == "" {
+			fmt.Printf("No %s session configured. Provider will use %s.\n", displayName, latestFlag)
+			return nil
+		}
+		fmt.Println(sessionID)
+		return nil
+	}
+
+	if len(args) == 1 && args[0] == "unset" {
+		_ = gitwrapUnsetConfig(configKey)
+		fmt.Printf("agit: %s session unset\n", displayName)
+		return nil
+	}
+
+	fmt.Printf("usage: agit bridge %s session set <id>|get|unset\n", name)
+	return nil
+}
+
 func provideViaBridge(b AgentBridge) error {
 	raw, err := b.Provide()
 	if err != nil {
@@ -178,10 +226,4 @@ func bridgeSessionID(envKey, configKey string) string {
 
 	sessionID, _ := gitwrapOutputConfig(configKey)
 	return sessionID
-}
-
-// checkoutFeedPrompt renders the restored-checkout prompt shared by the
-// bridges that can append a turn to a live agent session.
-func checkoutFeedPrompt(raw []byte) string {
-	return "The user just checked out a branch. Read this ai-git restored checkout context and use it as working context for future coding help. Do not summarize it back unless asked.\n\n" + string(raw)
 }
