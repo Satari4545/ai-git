@@ -10,7 +10,6 @@ import (
 	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
-// historyNoteJSON builds an agentContext-shaped AGIT note payload.
 func historyNoteJSON(t *testing.T, contextID, intent string, files, decisions, nextSteps []string) string {
 	t.Helper()
 	note := map[string]any{
@@ -32,14 +31,12 @@ func historyNoteJSON(t *testing.T, contextID, intent string, files, decisions, n
 	return string(raw)
 }
 
-// commitNoted creates an empty commit with an AGIT note attached.
 func commitNoted(t *testing.T, dir, msg, contextID, intent string, files, decisions, nextSteps []string) {
 	t.Helper()
 	commitEmpty(t, dir, msg)
 	addAgitNote(t, dir, "HEAD", historyNoteJSON(t, contextID, intent, files, decisions, nextSteps))
 }
 
-// commitEmpty creates an empty commit with the given message.
 func commitEmpty(t *testing.T, dir, msg string) {
 	t.Helper()
 	testutil.RunGit(t, dir, "commit", "--allow-empty", "-q", "-m", msg)
@@ -65,7 +62,7 @@ func TestNormalizeHistoryCount(t *testing.T) {
 }
 
 func TestGetHistoryReturnsNotesNewestFirst(t *testing.T) {
-	dir := testutil.InitRepo(t) // chdirs into dir
+	dir := testutil.InitRepo(t)
 
 	commitNoted(t, dir, "first", "ctx_sha256:111", "set up project", []string{"main.go"}, []string{"use stdlib"}, []string{"add tests"})
 	commitNoted(t, dir, "second", "ctx_sha256:222", "add login", []string{"web/login.go"}, []string{"use JWT"}, []string{"write tests"})
@@ -86,7 +83,6 @@ func TestGetHistoryReturnsNotesNewestFirst(t *testing.T) {
 		}
 	}
 
-	// Commit SHAs must line up newest-first too.
 	head := testutil.RunGit(t, dir, "rev-parse", "HEAD")
 	head1 := testutil.RunGit(t, dir, "rev-parse", "HEAD~1")
 	head2 := testutil.RunGit(t, dir, "rev-parse", "HEAD~2")
@@ -96,7 +92,6 @@ func TestGetHistoryReturnsNotesNewestFirst(t *testing.T) {
 		t.Errorf("commit SHAs out of order: %q %q %q", entries[0].Commit, entries[1].Commit, entries[2].Commit)
 	}
 
-	// Spot-check structured fields on the newest entry.
 	e := entries[0]
 	if e.Intent != "add logout" {
 		t.Errorf("Intent = %q, want %q", e.Intent, "add logout")
@@ -165,7 +160,6 @@ func TestGetHistoryCapsLargeN(t *testing.T) {
 
 	commitNoted(t, dir, "one", "ctx_sha256:cap1", "only", nil, nil, nil)
 
-	// n far above the cap must not error; the repo simply has fewer entries.
 	entries, err := GetHistory(1000, "", "")
 	if err != nil {
 		t.Fatalf("GetHistory(1000) = %v", err)
@@ -183,7 +177,6 @@ func TestGetHistoryBranchFilter(t *testing.T) {
 	commitNoted(t, dir, "feature work", "ctx_sha256:feat", "feature thing", nil, nil, nil)
 	testutil.RunGit(t, dir, "checkout", "-q", "-")
 
-	// Default (current branch): feature commit is not an ancestor.
 	entries, err := GetHistory(10, "", "")
 	if err != nil {
 		t.Fatalf("GetHistory default branch = %v", err)
@@ -213,10 +206,6 @@ func TestGetHistoryUnknownBranch(t *testing.T) {
 func TestGetHistorySinceFilter(t *testing.T) {
 	dir := testutil.InitRepo(t)
 
-	// Commit with explicit past author AND committer dates (--since filters
-	// on committer date) so the filter test is deterministic. git's date
-	// parser is unreliable for far-future years and some relative words,
-	// so the test pins dates near the commit.
 	cmd := exec.Command("git", "commit", "--allow-empty", "-q", "-m", "old work")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
@@ -245,8 +234,6 @@ func TestGetHistorySinceFilter(t *testing.T) {
 	}
 }
 
-// captureStdout swaps os.Stdout for the duration of fn and returns what was
-// written.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stdout
@@ -312,7 +299,6 @@ func TestMCPGetHistoryDispatch(t *testing.T) {
 	if !strings.Contains(text, "mcp work") {
 		t.Errorf("response text missing intent:\n%s", text)
 	}
-	// Newest first in the serialized payload.
 	if strings.Index(text, "ctx_sha256:mcp2") > strings.Index(text, "ctx_sha256:mcp1") {
 		t.Errorf("entries not newest-first:\n%s", text)
 	}
@@ -342,7 +328,6 @@ func TestMCPGetHistoryDispatchInvalidN(t *testing.T) {
 func TestMCPToolsListIncludesGetHistory(t *testing.T) {
 	_ = testutil.InitRepo(t)
 
-	// Drive the real stdio protocol: tools/list in, JSON-RPC out.
 	stdinR, stdinW, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
