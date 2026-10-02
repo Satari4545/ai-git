@@ -6,8 +6,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
+
+// agitMCPCommand is the executable name MCP hosts should spawn. On
+// Windows the npm-installed binary is agit.cmd, and host process
+// spawners (CreateProcess-based, no shell) do not resolve extensionless
+// names through PATHEXT the way a shell would.
+func agitMCPCommand() string {
+	if runtime.GOOS == "windows" {
+		return "agit.cmd"
+	}
+	return "agit"
+}
 
 func MCPInstall(target string) error {
 	switch strings.ToLower(target) {
@@ -41,13 +53,13 @@ func installCodex() error {
 		return err
 	}
 
-	block := `[mcp_servers.agit]
-command = "agit"
+	block := fmt.Sprintf(`[mcp_servers.agit]
+command = %q
 args = ["mcp", "serve"]
 enabled = true
 startup_timeout_sec = 10
 tool_timeout_sec = 30
-`
+`, agitMCPCommand())
 
 	var existing string
 	if raw, err := os.ReadFile(configPath); err == nil {
@@ -79,7 +91,7 @@ tool_timeout_sec = 30
 
 func installClaude() error {
 	fmt.Println("To install for Claude Code, run:")
-	fmt.Println(`claude mcp add --transport stdio --scope user agit -- agit mcp serve`)
+	fmt.Println("claude mcp add --transport stdio --scope user agit -- " + agitMCPCommand() + " mcp serve")
 	return nil
 }
 
@@ -91,14 +103,14 @@ func installPi() error {
 	// Prefer Pi's own CLI: `pi mcp add` owns the config layout and the
 	// add/replace semantics, so idempotency comes for free.
 	if _, err := exec.LookPath(piExecutable()); err == nil {
-		cmd := exec.Command(piExecutable(), "mcp", "add", "agit", "--", "agit", "mcp", "serve")
+		cmd := exec.Command(piExecutable(), "mcp", "add", "agit", "--", agitMCPCommand(), "mcp", "serve")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("pi mcp add failed: %w", err)
 		}
 		fmt.Println("Installed agit MCP server for Pi (user level).")
-		fmt.Println("For a single project instead, run: pi mcp add -l agit -- agit mcp serve")
+		fmt.Println("For a single project instead, run: pi mcp add -l agit -- " + agitMCPCommand() + " mcp serve")
 		fmt.Println("Restart Pi sessions and run `pi mcp list` to verify.")
 		return nil
 	}
@@ -157,7 +169,7 @@ func installGemini() error {
 // overwritten. extraFields adds client-specific entry keys, such as Pi's
 // description.
 func installJSONMCPTarget(displayName string, configPath string, extraFields map[string]any) error {
-	entry := map[string]any{"command": "agit", "args": []string{"mcp", "serve"}}
+	entry := map[string]any{"command": agitMCPCommand(), "args": []string{"mcp", "serve"}}
 	for k, v := range extraFields {
 		entry[k] = v
 	}
@@ -171,7 +183,7 @@ func installOpencode() error {
 	}
 	return mergeMCPServerConfig("OpenCode", configPath, "mcp", map[string]any{
 		"type":    "local",
-		"command": []string{"agit", "mcp", "serve"},
+		"command": []string{agitMCPCommand(), "mcp", "serve"},
 		"enabled": true,
 	})
 }

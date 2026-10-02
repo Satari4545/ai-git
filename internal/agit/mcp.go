@@ -3,7 +3,7 @@ package agit
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
+	"io"
 	"os"
 )
 
@@ -16,7 +16,7 @@ type MCPRequest struct {
 
 type MCPResponse struct {
 	JSONRPC string    `json:"jsonrpc"`
-	ID      any       `json:"id,omitempty"`
+	ID      any       `json:"id"`
 	Result  any       `json:"result,omitempty"`
 	Error   *MCPError `json:"error,omitempty"`
 }
@@ -27,20 +27,31 @@ type MCPError struct {
 }
 
 func MCPServe() error {
-	scanner := bufio.NewScanner(os.Stdin)
+	return serveMCP(os.Stdin, os.Stdout)
+}
+
+func serveMCP(r io.Reader, w io.Writer) error {
+	scanner := bufio.NewScanner(r)
+	// The default 64KB line cap aborts the server on one long JSON-RPC
+	// line; agent context payloads can legitimately exceed it.
+	scanner.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+	s := &mcpSession{out: w}
 
 	for scanner.Scan() {
 		line := scanner.Bytes()
 
 		var req MCPRequest
 		if err := json.Unmarshal(line, &req); err != nil {
-			writeMCPError(nil, -32700, "parse error")
+			s.writeError(nil, -32700, "parse error")
+			continue
+		}
+		if req.ID == nil {
 			continue
 		}
 
 		switch req.Method {
 		case "initialize":
-			writeMCPResult(req.ID, map[string]any{
+			s.writeResult(req.ID, map[string]any{
 				"protocolVersion": "2025-06-18",
 				"capabilities": map[string]any{
 					"tools": map[string]any{},
@@ -51,11 +62,8 @@ func MCPServe() error {
 				},
 			})
 
-		case "notifications/initialized":
-			// Notification: no response.
-
 		case "tools/list":
-			writeMCPResult(req.ID, map[string]any{
+			s.writeResult(req.ID, map[string]any{
 				"tools": []map[string]any{
 					{
 						"name":        "record_context",
@@ -168,44 +176,48 @@ func MCPServe() error {
 			})
 
 		case "tools/call":
-			handleToolCall(req)
+			s.handleToolCall(req)
 
 		default:
-			writeMCPError(req.ID, -32601, "method not found")
+			s.writeError(req.ID, -32601, "method not found")
 		}
 	}
 
 	return scanner.Err()
 }
 
-func handleToolCall(req MCPRequest) {
+type mcpSession struct {
+	out io.Writer
+}
+
+func (s *mcpSession) handleToolCall(req MCPRequest) {
 	var params struct {
 		Name      string         `json:"name"`
 		Arguments map[string]any `json:"arguments"`
 	}
 
 	if err := json.Unmarshal(req.Params, &params); err != nil {
-		writeMCPError(req.ID, -32602, "invalid params")
+		s.writeError(req.ID, -32602, "invalid params")
 		return
 	}
 
 	switch params.Name {
 	case "record_context":
-		handleRecordContext(req.ID, params.Arguments)
+		s.handleRecordContext(req.ID, params.Arguments)
 	case "get_context":
-		handleGetContext(req.ID)
+		s.handleGetContext(req.ID)
 	case "get_git_state":
-		handleGetGitState(req.ID)
+		s.handleGetGitState(req.ID)
 	case "get_context_status":
-		handleGetContextStatus(req.ID)
+		s.handleGetContextStatus(req.ID)
 	case "get_history":
-		handleGetHistory(req.ID, params.Arguments)
+		s.handleGetHistory(req.ID, params.Arguments)
 	default:
-		writeMCPError(req.ID, -32601, "unknown tool")
+		s.writeError(req.ID, -32601, "unknown tool")
 	}
 }
 
-func handleRecordContext(id any, arguments map[string]any) {
+func (s *mcpSession) handleRecordContext(id any, arguments map[string]any) {
 	args := []string{}
 
 	addArg := func(flag string, value any) {
@@ -237,11 +249,11 @@ func handleRecordContext(id any, arguments map[string]any) {
 	defer os.Unsetenv("AGIT_MCP_SILENT")
 
 	if err := AgentWrite(args); err != nil {
-		writeMCPError(id, -32000, err.Error())
+		s.writeError(id, -32000, err.Error())
 		return
 	}
 
-	writeMCPResult(id, map[string]any{
+	s.writeResult(id, map[string]any{
 		"content": []map[string]any{
 			{
 				"type": "text",
@@ -251,53 +263,53 @@ func handleRecordContext(id any, arguments map[string]any) {
 	})
 }
 
-func handleGetGitState(id any) {
+func (s *mcpSession) handleGetGitState(id any) {
 	raw, err := json.MarshalIndent(BuildGitState(), "", "  ")
 	if err != nil {
-		writeMCPError(id, -32000, err.Error())
+		s.writeError(id, -32000, err.Error())
 		return
 	}
 
-	writeTextResult(id, string(raw))
+	s.writeTextResult(id, string(raw))
 }
 
-func handleGetContextStatus(id any) {
+func (s *mcpSession) handleGetContextStatus(id any) {
 	status, err := BuildContextStatus()
 	if err != nil {
-		writeMCPError(id, -32000, err.Error())
+		s.writeError(id, -32000, err.Error())
 		return
 	}
 
 	raw, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
-		writeMCPError(id, -32000, err.Error())
+		s.writeError(id, -32000, err.Error())
 		return
 	}
 
-	writeTextResult(id, string(raw))
+	s.writeTextResult(id, string(raw))
 }
 
-func handleGetContext(id any) {
+func (s *mcpSession) handleGetContext(id any) {
 	raw, ok, err := LoadCheckoutContextRaw()
 	if err != nil {
-		writeMCPError(id, -32000, err.Error())
+		s.writeError(id, -32000, err.Error())
 		return
 	}
 
 	if !ok {
-		writeTextResult(id, "No checkout context has been restored. Run `agit checkout <branch>` on a commit with AGIT notes.")
+		s.writeTextResult(id, "No checkout context has been restored. Run `agit checkout <branch>` on a commit with AGIT notes.")
 		return
 	}
 
-	writeTextResult(id, string(raw))
+	s.writeTextResult(id, string(raw))
 }
 
-func handleGetHistory(id any, arguments map[string]any) {
+func (s *mcpSession) handleGetHistory(id any, arguments map[string]any) {
 	n := defaultHistoryCount
 	if v, ok := arguments["n"]; ok && v != nil {
 		f, ok := v.(float64)
 		if !ok {
-			writeMCPError(id, -32602, "invalid params: n must be a number")
+			s.writeError(id, -32602, "invalid params: n must be a number")
 			return
 		}
 		n = int(f)
@@ -307,20 +319,20 @@ func handleGetHistory(id any, arguments map[string]any) {
 
 	entries, err := GetHistory(n, branch, since)
 	if err != nil {
-		writeMCPError(id, -32000, err.Error())
+		s.writeError(id, -32000, err.Error())
 		return
 	}
 
 	raw, err := json.MarshalIndent(entries, "", "  ")
 	if err != nil {
-		writeMCPError(id, -32000, err.Error())
+		s.writeError(id, -32000, err.Error())
 		return
 	}
-	writeTextResult(id, string(raw))
+	s.writeTextResult(id, string(raw))
 }
 
-func writeTextResult(id any, text string) {
-	writeMCPResult(id, map[string]any{
+func (s *mcpSession) writeTextResult(id any, text string) {
+	s.writeResult(id, map[string]any{
 		"content": []map[string]any{
 			{
 				"type": "text",
@@ -330,17 +342,17 @@ func writeTextResult(id any, text string) {
 	})
 }
 
-func writeMCPResult(id any, result any) {
+func (s *mcpSession) writeResult(id any, result any) {
 	resp := MCPResponse{
 		JSONRPC: "2.0",
 		ID:      id,
 		Result:  result,
 	}
 
-	writeJSON(resp)
+	s.writeJSON(resp)
 }
 
-func writeMCPError(id any, code int, message string) {
+func (s *mcpSession) writeError(id any, code int, message string) {
 	resp := MCPResponse{
 		JSONRPC: "2.0",
 		ID:      id,
@@ -350,10 +362,11 @@ func writeMCPError(id any, code int, message string) {
 		},
 	}
 
-	writeJSON(resp)
+	s.writeJSON(resp)
 }
 
-func writeJSON(v any) {
+func (s *mcpSession) writeJSON(v any) {
 	raw, _ := json.Marshal(v)
-	fmt.Println(string(raw))
+	raw = append(raw, '\n')
+	s.out.Write(raw)
 }
