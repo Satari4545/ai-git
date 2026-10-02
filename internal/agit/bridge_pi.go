@@ -11,6 +11,7 @@ import (
 
 func init() {
 	RegisterBridge(piBridge{})
+	registerBridgeExecutable("pi", piExecutable)
 }
 
 // piBridge is the AgentBridge implementation for the Pi coding agent

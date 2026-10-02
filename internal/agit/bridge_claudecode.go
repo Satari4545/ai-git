@@ -13,6 +13,7 @@ import (
 
 func init() {
 	RegisterBridge(claudeCodeBridge{})
+	registerBridgeExecutable("claude-code", claudeCodeExecutable)
 }
 
 // claudeCodeBridge is the AgentBridge implementation for Claude Code.

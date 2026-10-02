@@ -11,6 +11,7 @@ import (
 
 func init() {
 	RegisterBridge(geminiBridge{})
+	registerBridgeExecutable("gemini", geminiExecutable)
 }
 
 // geminiBridge is the AgentBridge implementation for the Gemini CLI.

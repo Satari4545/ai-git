@@ -21,6 +21,12 @@ func agitMCPCommand() string {
 	return "agit"
 }
 
+// MCPInstallTargets lists the `agit mcp install` targets in suggestion
+// order. Keep in sync with the MCPInstall switch below.
+func MCPInstallTargets() []string {
+	return []string{"codex", "claude", "pi", "cursor", "gemini", "opencode"}
+}
+
 func MCPInstall(target string) error {
 	switch strings.ToLower(target) {
 	case "codex":
@@ -36,18 +42,58 @@ func MCPInstall(target string) error {
 	case "opencode":
 		return installOpencode()
 	default:
-		return fmt.Errorf("unsupported MCP target: %s (supported: codex, claude, pi, cursor, gemini, opencode)", target)
+		return fmt.Errorf("unsupported MCP target: %s (supported: %s)", target, strings.Join(MCPInstallTargets(), ", "))
 	}
 }
 
-func installCodex() error {
+// mcpInstallTarget maps a bridge name to its `agit mcp install` target.
+// They match except claude-code, which installs as "claude".
+func mcpInstallTarget(bridgeName string) string {
+	if bridgeName == "claude-code" {
+		return "claude"
+	}
+	return bridgeName
+}
+
+// mcpTargetExecutable returns the CLI executable whose presence on PATH
+// suggests the user works with the given MCP install target.
+func mcpTargetExecutable(target string) (string, error) {
+	if target == "claude" {
+		return BridgeExecutable("claude-code")
+	}
+	return BridgeExecutable(target)
+}
+
+func codexMCPConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".codex", "config.toml"), nil
+}
+
+func cursorMCPConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".cursor", "mcp.json"), nil
+}
+
+func geminiMCPConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".gemini", "settings.json"), nil
+}
+
+func installCodex() error {
+	configPath, err := codexMCPConfigPath()
 	if err != nil {
 		return err
 	}
-
-	configDir := filepath.Join(home, ".codex")
-	configPath := filepath.Join(configDir, "config.toml")
+	configDir := filepath.Dir(configPath)
 
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return err
@@ -146,19 +192,19 @@ func piAgentDir() (string, error) {
 }
 
 func installCursor() error {
-	home, err := os.UserHomeDir()
+	configPath, err := cursorMCPConfigPath()
 	if err != nil {
 		return err
 	}
-	return installJSONMCPTarget("Cursor", filepath.Join(home, ".cursor", "mcp.json"), nil)
+	return installJSONMCPTarget("Cursor", configPath, nil)
 }
 
 func installGemini() error {
-	home, err := os.UserHomeDir()
+	configPath, err := geminiMCPConfigPath()
 	if err != nil {
 		return err
 	}
-	return installJSONMCPTarget("Gemini CLI", filepath.Join(home, ".gemini", "settings.json"), nil)
+	return installJSONMCPTarget("Gemini CLI", configPath, nil)
 }
 
 // installJSONMCPTarget merges the agit stdio server into the agent's JSON

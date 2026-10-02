@@ -10,6 +10,7 @@ import (
 
 func init() {
 	RegisterBridge(cursorBridge{})
+	registerBridgeExecutable("cursor", cursorAgentExecutable)
 }
 
 // cursorBridge is the AgentBridge implementation for Cursor.
