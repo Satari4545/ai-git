@@ -7,10 +7,9 @@ updates; upgrade to pick up fixes.
 
 ## Reporting a Vulnerability
 
-**Do not open a public issue** for a suspected vulnerability. Instead, open
-a private security advisory:
+**Do not open a public issue** for a suspected vulnerability. Instead, email:
 
-**https://github.com/Satari4545/ai-git/security/advisories/new**
+**yousatari@gmail.com**
 
 Include:
 
