@@ -9,7 +9,6 @@ import (
 	gitwrap "github.com/Satari4545/ai-git/internal/git"
 )
 
-// contextLogDefaults holds the default options for `agit context log`.
 const defaultContextLogCount = 20
 
 type contextLogOptions struct {
@@ -18,8 +17,6 @@ type contextLogOptions struct {
 	paths    []string
 }
 
-// ContextLog implements `agit context log`: walk recent commits and show the
-// AGIT context note attached to each one, if any.
 func ContextLog(args []string) error {
 	opts, err := parseContextLogArgs(args)
 	if err != nil {
@@ -85,7 +82,6 @@ func parseContextLogArgs(args []string) (contextLogOptions, error) {
 	return opts, nil
 }
 
-// contextLogEntry is one commit plus its optional AGIT context summary.
 type contextLogEntry struct {
 	Commit    string       `json:"commit"`
 	Short     string       `json:"short"`
@@ -96,8 +92,7 @@ type contextLogEntry struct {
 	Summary   *noteSummary `json:"summary,omitempty"`
 }
 
-// noteSummary is the compact, human-useful slice of an AGIT note.
-// It is parsed defensively: unknown or missing fields never fail the parse.
+// Parsed defensively: unknown or missing fields never fail the parse.
 type noteSummary struct {
 	ContextID string   `json:"contextID"`
 	Intent    string   `json:"intent,omitempty"`
@@ -109,8 +104,8 @@ type noteSummary struct {
 	CreatedAt string   `json:"createdAt,omitempty"`
 }
 
-// agitNote mirrors only the fields of a commit note that context log needs.
-// Everything else in the note is ignored so schema additions stay compatible.
+// Only the needed fields are mirrored; the rest is ignored so schema
+// additions stay compatible.
 type agitNote struct {
 	ContextID  string `json:"contextID"`
 	LogicState *struct {
@@ -134,7 +129,6 @@ type agitNote struct {
 	} `json:"agentContext"`
 }
 
-// summarizeNote extracts the compact summary from a raw AGIT note.
 // A malformed or empty note returns an error; the caller decides how to show it.
 func summarizeNote(raw []byte) (*noteSummary, error) {
 	// Unmarshal into a pointer so a JSON null payload decodes to nil
