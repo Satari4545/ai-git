@@ -1,5 +1,7 @@
 package agit
 
+import "fmt"
+
 func init() {
 	RegisterBridge(opencodeBridge{})
 	registerBridgeExecutable("opencode", opencodeExecutable)
@@ -40,14 +42,21 @@ func (opencodeBridge) Feed(ctx *RestoredCheckoutContext) error {
 	}
 
 	cmdArgs := []string{"run"}
-	if sessionID := opencodeSessionID(); sessionID != "" {
+	sessionID, notice := resolveFeedSession(opencodeBridge{}, opencodeSessionID())
+	if sessionID != "" {
 		cmdArgs = append(cmdArgs, "--session", sessionID)
 	} else {
 		cmdArgs = append(cmdArgs, "--continue")
 	}
 	cmdArgs = append(cmdArgs, prompt)
 
-	return runBridgeFeed(opencodeBridge{}, cmdArgs, nil)
+	if err := runBridgeFeed(opencodeBridge{}, cmdArgs, nil); err != nil {
+		return err
+	}
+	if notice != "" {
+		fmt.Println(notice)
+	}
+	return nil
 }
 
 func opencodeExecutable() string {

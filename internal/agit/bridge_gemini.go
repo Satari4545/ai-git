@@ -1,5 +1,7 @@
 package agit
 
+import "fmt"
+
 func init() {
 	RegisterBridge(geminiBridge{})
 	registerBridgeExecutable("gemini", geminiExecutable)
@@ -39,14 +41,21 @@ func (geminiBridge) Feed(ctx *RestoredCheckoutContext) error {
 	}
 
 	cmdArgs := []string{"-p", "--output-format", "text"}
-	if sessionID := geminiSessionID(); sessionID != "" {
+	sessionID, notice := resolveFeedSession(geminiBridge{}, geminiSessionID())
+	if sessionID != "" {
 		cmdArgs = append(cmdArgs, "--resume", sessionID)
 	} else {
 		cmdArgs = append(cmdArgs, "--resume", "latest")
 	}
 	cmdArgs = append(cmdArgs, prompt)
 
-	return runBridgeFeed(geminiBridge{}, cmdArgs, nil)
+	if err := runBridgeFeed(geminiBridge{}, cmdArgs, nil); err != nil {
+		return err
+	}
+	if notice != "" {
+		fmt.Println(notice)
+	}
+	return nil
 }
 
 func geminiExecutable() string {

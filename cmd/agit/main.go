@@ -141,7 +141,7 @@ Usage:
   agit context log [-n N] [--json] [-- <path>...]
   agit bridge list
   agit bridge <agent> install
-  agit bridge codex session set <id>
+  agit bridge codex session set <id>|get|unset|list
   agit config checkout-feed prompt|enable|disable
   agit config context-timeout <seconds>
   agit config context-provider set <command>
