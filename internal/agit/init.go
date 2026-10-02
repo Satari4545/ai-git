@@ -35,9 +35,6 @@ func inGitRepo() bool {
 	return err == nil && out != ""
 }
 
-// ensureNotesFetchRefspec adds the agit notes refspec to origin's fetch
-// config so plain `git fetch` also brings context notes. It is a no-op when
-// there is no origin remote or the refspec is already present.
 func ensureNotesFetchRefspec() error {
 	remotes, err := gitwrap.OutputQuiet("remote")
 	if err != nil {
