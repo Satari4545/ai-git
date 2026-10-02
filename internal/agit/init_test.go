@@ -104,3 +104,24 @@ func TestInitWithoutOriginSkipsRefspec(t *testing.T) {
 		t.Errorf(".agit dir should not be created eagerly by init")
 	}
 }
+
+func TestInitConfiguresAllRemotes(t *testing.T) {
+	dir := testutil.InitRepo(t)
+	bare1 := t.TempDir()
+	bare2 := t.TempDir()
+	testutil.RunGit(t, bare1, "init", "--bare", "-q")
+	testutil.RunGit(t, bare2, "init", "--bare", "-q")
+	testutil.RunGit(t, dir, "remote", "add", "origin", bare1)
+	testutil.RunGit(t, dir, "remote", "add", "upstream", bare2)
+
+	if err := Init(); err != nil {
+		t.Fatalf("Init() = %v, want nil", err)
+	}
+
+	for _, name := range []string{"origin", "upstream"} {
+		out := testutil.RunGit(t, dir, "config", "--get-all", "remote."+name+".fetch")
+		if !strings.Contains(out, "refs/notes/agit") {
+			t.Errorf("remote %q fetch refspec missing notes ref", name)
+		}
+	}
+}

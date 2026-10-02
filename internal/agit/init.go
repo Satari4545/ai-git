@@ -9,7 +9,7 @@ import (
 
 // Without this refspec, plain `git fetch` silently skips agit notes;
 // `agit fetch` covers the explicit path, this covers the plain-git path.
-const notesFetchRefspec = "+refs/notes/agit:refs/notes/agit"
+const notesFetchRefspec = "+" + NotesRef + ":" + NotesRef
 
 func Init() error {
 	if !inGitRepo() {
@@ -37,30 +37,31 @@ func ensureNotesFetchRefspec() error {
 	if err != nil {
 		return err
 	}
-	hasOrigin := false
-	for _, r := range strings.Fields(remotes) {
-		if r == "origin" {
-			hasOrigin = true
-			break
-		}
-	}
-	if !hasOrigin {
-		fmt.Println("agit: no origin remote, skipping notes refspec (agit fetch still syncs notes)")
+	names := strings.Fields(remotes)
+	if len(names) == 0 {
+		fmt.Println("agit: no remotes, skipping notes refspec (agit fetch still syncs notes)")
 		return nil
 	}
+	for _, name := range names {
+		if err := ensureRemoteNotesRefspec(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	existing, _ := gitwrap.OutputQuiet("config", "--get-all", "remote.origin.fetch")
+func ensureRemoteNotesRefspec(name string) error {
+	existing, _ := gitwrap.OutputQuiet("config", "--get-all", "remote."+name+".fetch")
 	for _, line := range strings.Split(existing, "\n") {
-		if strings.TrimSpace(line) == notesFetchRefspec {
-			fmt.Println("agit: notes refspec already configured")
+		if strings.Contains(line, NotesRef) {
+			fmt.Printf("agit: notes refspec already configured for '%s'\n", name)
 			return nil
 		}
 	}
-
-	if err := gitwrap.Run("config", "--add", "remote.origin.fetch", notesFetchRefspec); err != nil {
+	if err := gitwrap.Run("config", "--add", "remote."+name+".fetch", notesFetchRefspec); err != nil {
 		return err
 	}
-	fmt.Println("agit: configured origin to fetch agit notes on plain git fetch")
+	fmt.Printf("agit: configured '%s' to fetch agit notes on plain git fetch\n", name)
 	return nil
 }
 
