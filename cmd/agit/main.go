@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Satari4545/ai-git/internal/agit"
 	gitwrap "github.com/Satari4545/ai-git/internal/git"
@@ -42,6 +43,11 @@ func main() {
 	case "debug":
 		if err := agit.DebugHEAD(); err != nil {
 			fmt.Fprintln(os.Stderr, "agit debug error:", err)
+			os.Exit(1)
+		}
+	case "doctor":
+		if err := agit.Doctor(); err != nil {
+			fmt.Fprintln(os.Stderr, "agit doctor error:", err)
 			os.Exit(1)
 		}
 	case "agent":
@@ -114,7 +120,7 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
-			fmt.Println("usage: agit mcp record-context|get-context|serve|install <codex|claude|pi|cursor|gemini|opencode>")
+			fmt.Println("usage: agit mcp record-context|get-context|serve|install <" + strings.Join(agit.MCPInstallTargets(), "|") + ">")
 		}
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {
@@ -143,10 +149,11 @@ Usage:
   agit fetch [git fetch args...]
   agit pull [git pull args...]
   agit debug
+  agit doctor
   agit mcp record-context --intent <summary> [--message <message>]
   agit mcp get-context
   agit mcp serve
-  agit mcp install <codex|claude|pi|cursor|gemini|opencode>
+  agit mcp install <` + strings.Join(agit.MCPInstallTargets(), "|") + `>
 
 Commands:
   init                Set up this repo for agit and show the quickstart.
@@ -160,6 +167,7 @@ Commands:
   fetch               Fetch Git refs, then fetch AGIT Git notes.
   pull                Pull Git refs, then fetch AGIT Git notes.
   debug               Show the AGIT note attached to HEAD.
+  doctor              Check the agit setup and print PASS/WARN/FAIL per item.
   mcp record-context  Record coding-agent context for the next commit.
   mcp get-context     Print context restored by the last AGIT checkout.
   mcp serve           Run AGIT's MCP stdio server.

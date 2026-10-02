@@ -14,6 +14,7 @@ import (
 
 func init() {
 	RegisterBridge(codexBridge{})
+	registerBridgeExecutable("codex", codexExecutable)
 }
 
 // codexBridge is the AgentBridge implementation for Codex.

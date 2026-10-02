@@ -10,6 +10,7 @@ import (
 
 func init() {
 	RegisterBridge(opencodeBridge{})
+	registerBridgeExecutable("opencode", opencodeExecutable)
 }
 
 // opencodeBridge is the AgentBridge implementation for OpenCode.

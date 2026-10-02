@@ -75,6 +75,26 @@ func ActiveBridge() (AgentBridge, error) {
 	return b, nil
 }
 
+var bridgeExecutables = map[string]func() string{}
+
+// registerBridgeExecutable records how to locate a bridge's CLI executable.
+// Each bridge calls it from its own init alongside RegisterBridge, so PATH
+// probing (doctor, init suggestions) reuses the canonical per-bridge
+// definition instead of hardcoding executable names a second time.
+func registerBridgeExecutable(name string, executable func() string) {
+	bridgeExecutables[name] = executable
+}
+
+// BridgeExecutable returns the platform-specific CLI executable name for a
+// registered bridge, e.g. "codex", or "codex.cmd" on Windows.
+func BridgeExecutable(name string) (string, error) {
+	executable, ok := bridgeExecutables[name]
+	if !ok {
+		return "", fmt.Errorf("no CLI executable registered for bridge %q", name)
+	}
+	return executable(), nil
+}
+
 const bridgeUsage = `usage: agit bridge list
        agit bridge <agent> install|provider|feed
        agit bridge codex session set <id>|get|unset
