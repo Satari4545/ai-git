@@ -126,7 +126,17 @@ If multiple Codex sessions exist, pin the bridge to the right one:
 agit bridge codex session set <session-id>
 ```
 
-With no session pinned, the Codex bridge uses `codex exec resume --last`.
+List live sessions for the current repo to pick one:
+
+```sh
+agit bridge codex session list
+```
+
+With no session pinned, agit reads the bridge's on-disk session store: a
+single live session for the repo is fed silently, otherwise the most recent
+one is fed with a one-line notice naming it. (Session listing is currently
+supported for Codex and Pi; other bridges fall back to their native
+latest-session flag.)
 
 ### Claude Code
 
@@ -280,6 +290,12 @@ Inspect the context attached to `HEAD`:
 agit debug
 ```
 
+Check your whole setup (repo, notes refspec, bridge, bridge CLI, MCP install) with PASS/WARN/FAIL per item:
+
+```sh
+agit doctor
+```
+
 Push commits and ai-git notes:
 
 ```sh
@@ -300,7 +316,8 @@ agit pull
 
 ## MCP Setup
 
-Install the ai-git MCP server for Codex:
+Install the ai-git MCP server for your agent (one of `codex`, `claude`,
+`pi`, `cursor`, `gemini`, `opencode`):
 
 ```sh
 agit mcp install codex
@@ -318,6 +335,7 @@ The MCP server exposes:
 - `get_context` to read context restored by `agit checkout`.
 - `get_git_state` to let agents inspect branch, HEAD, staged files, unstaged files, and untracked files before recording context.
 - `get_context_status` to let agents inspect active context freshness before committing.
+- `get_history` to browse context attached to past commits on a branch.
 
 ## Releasing
 

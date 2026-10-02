@@ -20,13 +20,8 @@ agit mcp install codex
 
 Expect: the agit MCP server is registered for Codex. Restart Codex and run `/mcp` to verify.
 
-Claude Code instead:
-
-```sh
-agit mcp install claude
-```
-
-Expect: prints the `claude mcp add` command to run.
+Other agents: `agit mcp install claude` (prints the `claude mcp add` command
+to run), or `pi`, `cursor`, `gemini`, `opencode`.
 
 ## 3. Record what the agent is doing
 
@@ -94,4 +89,4 @@ That is the handoff: what the first agent knew is now what the second agent know
 
 Context travels with the repo as git notes bound to real commits. Nothing leaves your git remote except through the refs you already push and fetch.
 
-Next: `agit context log` to browse past context, `agit bridge <agent> install` so `agit commit` can ask the agent for fresh context automatically. See README.md.
+Next: `agit context log` to browse past context, `agit bridge <agent> install` so `agit commit` can ask the agent for fresh context automatically, `agit bridge <agent> session list` to see live sessions for the repo, and `agit doctor` to check the whole setup. See README.md.
