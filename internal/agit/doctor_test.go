@@ -51,7 +51,7 @@ func TestBridgeExecutableUnknown(t *testing.T) {
 }
 
 func TestMCPInstallTargets(t *testing.T) {
-	want := []string{"codex", "claude", "pi", "cursor", "gemini"}
+	want := []string{"codex", "claude", "pi", "cursor", "gemini", "opencode"}
 	got := MCPInstallTargets()
 	if len(got) != len(want) {
 		t.Fatalf("MCPInstallTargets() = %v, want %v", got, want)

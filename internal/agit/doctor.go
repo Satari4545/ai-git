@@ -191,6 +191,12 @@ func bridgeMCPInstalled(bridgeName string) (installed bool, where string, err er
 			return false, "", err
 		}
 		return jsonMCPHasAgit(path)
+	case "opencode":
+		path, err := opencodeConfigPath()
+		if err != nil {
+			return false, "", err
+		}
+		return jsonMCPHasAgitKey(path, "mcp")
 	default:
 		return false, "", fmt.Errorf("no MCP check for bridge %q", bridgeName)
 	}
@@ -200,6 +206,13 @@ func bridgeMCPInstalled(bridgeName string) (installed bool, where string, err er
 // agit server under mcpServers. A missing file means "not installed", not
 // an error.
 func jsonMCPHasAgit(path string) (bool, string, error) {
+	return jsonMCPHasAgitKey(path, "mcpServers")
+}
+
+// jsonMCPHasAgitKey reports whether the JSON MCP config at path declares
+// the agit server under serversKey ("mcpServers" for most clients, "mcp"
+// for OpenCode). A missing file means "not installed", not an error.
+func jsonMCPHasAgitKey(path string, serversKey string) (bool, string, error) {
 	raw, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return false, "", nil
@@ -211,7 +224,7 @@ func jsonMCPHasAgit(path string) (bool, string, error) {
 	if err := json.Unmarshal(raw, &config); err != nil {
 		return false, "", fmt.Errorf("%s is not valid JSON: %w", path, err)
 	}
-	servers, _ := config["mcpServers"].(map[string]any)
+	servers, _ := config[serversKey].(map[string]any)
 	if _, ok := servers["agit"]; ok {
 		return true, path, nil
 	}
