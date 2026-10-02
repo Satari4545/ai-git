@@ -28,12 +28,11 @@ const (
 	maxIntentRunes   = 500
 	maxMessageRunes  = 500
 	maxDeltaRunes    = 2000
-	maxMetaRunes     = 200 // provider, taskID, repo, branch, baseCommit
+	maxMetaRunes     = 200
 	maxListItemRunes = 200
 	maxListItems     = 20
 )
 
-// Total payload cap in bytes on the marshaled JSON.
 const maxPayloadBytes = 32 * 1024
 
 const minShrinkRunes = 100
@@ -97,8 +96,7 @@ var (
 	}
 )
 
-// RedactString scrubs well-known secret shapes from s, replacing each with
-// [REDACTED]. Pure function: no I/O, safe to call anywhere.
+// Pure function: no I/O, safe to call anywhere.
 func RedactString(s string) string {
 	if s == "" {
 		return s
@@ -116,8 +114,7 @@ func RedactString(s string) string {
 	return s
 }
 
-// redactionEnabled reports whether secret redaction applies. Default is ON;
-// only explicit false-like values disable it.
+// Default is ON; only explicit false-like values disable it.
 func redactionEnabled() bool {
 	value, _ := gitwrap.OutputQuiet("config", "--get", "agit.redact")
 	switch strings.ToLower(strings.TrimSpace(value)) {
