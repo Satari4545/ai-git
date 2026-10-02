@@ -9,11 +9,6 @@ import (
 	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
-// The product writes notes with `git notes --ref=agit add` (commit.go),
-// reads them with `git notes --ref=agit show` (checkout.go, contextlog.go),
-// and pushes them via the notes ref (push.go). These tests lock the shared
-// ref convention: a note written the way commit writes it must be readable
-// the way every reader reads it.
 
 const testNoteJSON = `{
   "contextID": "ctx_sha256:noteref123",
@@ -35,7 +30,6 @@ func TestAgitNoteRefRoundTrip(t *testing.T) {
 	head := testutil.CommitFile(t, dir, "ref.go", "package x", "note me")
 	addAgitNote(t, dir, head, testNoteJSON)
 
-	// Read back exactly like checkout.go and contextlog.go do.
 	raw, err := gitwrap.OutputQuiet("notes", "--ref=agit", "show", head)
 	if err != nil {
 		t.Fatalf("reading note failed: %v", err)
@@ -59,8 +53,6 @@ func TestAgitNoteRefRoundTrip(t *testing.T) {
 	}
 }
 
-// decodeTestNote extracts the fields these tests assert on without depending
-// on feature code: it mirrors just enough of the note schema.
 func decodeTestNote(raw string) (struct {
 	ContextID string
 	Intent    string
@@ -100,7 +92,6 @@ func TestAgitNoteMissing(t *testing.T) {
 
 	head := testutil.CommitFile(t, dir, "plain.go", "package x", "no note")
 
-	// Callers treat a missing note as "no context", not a failure.
 	raw, err := gitwrap.OutputQuiet("notes", "--ref=agit", "show", head)
 	if err == nil {
 		t.Error("expected error for missing note, got nil")

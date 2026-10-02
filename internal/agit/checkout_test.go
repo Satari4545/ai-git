@@ -174,7 +174,6 @@ func TestCheckoutRestoresContextEndToEnd(t *testing.T) {
 	testutil.RunGit(t, dir, "checkout", "-qb", "other")
 	testutil.CommitFile(t, dir, "other.go", "package x", "other work")
 
-	// --no-feed-context avoids the interactive prompt and the Codex feed.
 	if err := Checkout([]string{"--no-feed-context", "-q", "-"}); err != nil {
 		t.Fatalf("Checkout failed: %v", err)
 	}

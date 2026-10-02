@@ -120,7 +120,6 @@ func TestAgentWriteRoundTrip(t *testing.T) {
 	if ctx.IntentSummary != "add feature" {
 		t.Errorf("IntentSummary = %q", ctx.IntentSummary)
 	}
-	// CommitMessageSuggestion defaults to the intent when --message is absent.
 	if ctx.CommitMessageSuggestion != "add feature" {
 		t.Errorf("CommitMessageSuggestion = %q, want intent default", ctx.CommitMessageSuggestion)
 	}

@@ -39,7 +39,6 @@ func TestSummarizeNoteFull(t *testing.T) {
 	if s.ContextID != "ctx_sha256:abc123def456" {
 		t.Errorf("ContextID = %q", s.ContextID)
 	}
-	// logicState intent wins over agentContext intent.
 	if s.Intent != "Add context log command" {
 		t.Errorf("Intent = %q", s.Intent)
 	}
@@ -52,7 +51,6 @@ func TestSummarizeNoteFull(t *testing.T) {
 	if len(s.Decisions) != 1 || s.Decisions[0] != "use context subcommand" {
 		t.Errorf("Decisions = %v", s.Decisions)
 	}
-	// Risks merge logicState riskFlags with agentContext risks.
 	if len(s.Risks) != 2 {
 		t.Errorf("Risks = %v, want 2 merged entries", s.Risks)
 	}
@@ -164,7 +162,6 @@ func TestShortContextID(t *testing.T) {
 }
 
 func TestTruncateLineMultibyte(t *testing.T) {
-	// "é" is 2 bytes; truncating by bytes would split a rune.
 	s := strings.Repeat("é", 20)
 	got := truncateLine(s, 10)
 	want := strings.Repeat("é", 7) + "..."

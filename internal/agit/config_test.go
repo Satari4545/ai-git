@@ -78,7 +78,6 @@ func TestConfigContextTimeout(t *testing.T) {
 func TestConfigUnknownArgsShowsUsage(t *testing.T) {
 	testutil.InitRepo(t)
 
-	// Unknown invocations print usage and return nil (no error).
 	if err := Config([]string{"bogus"}); err != nil {
 		t.Errorf("expected nil error for unknown config args, got %v", err)
 	}
