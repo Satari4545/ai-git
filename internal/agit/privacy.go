@@ -132,8 +132,6 @@ func RedactMode() string {
 	return "disabled"
 }
 
-// redactAgentContext scrubs every free-text field of the context in place.
-// SchemaVersion and CreatedAt are machine-generated and skipped.
 func redactAgentContext(ctx *AgentContext) {
 	ctx.Provider = RedactString(ctx.Provider)
 	ctx.TaskID = RedactString(ctx.TaskID)
@@ -157,9 +155,7 @@ func redactList(items []string) []string {
 	return items
 }
 
-// enforceSizeLimits applies rune-aware per-field caps, then the total
-// payload cap. Reuses the repo's truncateLine so multi-byte runes are never
-// split.
+// Rune-aware throughout: multi-byte runes are never split.
 func enforceSizeLimits(ctx *AgentContext) {
 	ctx.Provider = truncateLine(ctx.Provider, maxMetaRunes)
 	ctx.TaskID = truncateLine(ctx.TaskID, maxMetaRunes)
@@ -179,8 +175,6 @@ func enforceSizeLimits(ctx *AgentContext) {
 	enforceTotalCap(ctx)
 }
 
-// truncateStringList caps list length (repo truncateList style, with a
-// "+N more" marker so truncation is visible) and per-item rune length.
 func truncateStringList(items []string) []string {
 	for i, item := range items {
 		items[i] = truncateLine(item, maxListItemRunes)
@@ -188,10 +182,10 @@ func truncateStringList(items []string) []string {
 	return truncateList(items, maxListItems)
 }
 
-// enforceTotalCap shrinks the largest text fields until the marshaled
-// payload fits. Bounded iterations; the record is never dropped.
+// Shrinks the largest text fields until the marshaled payload fits or no
+// field can shrink further; the record is never dropped.
 func enforceTotalCap(ctx *AgentContext) {
-	for i := 0; i < 20; i++ {
+	for {
 		raw, err := json.Marshal(ctx)
 		if err != nil || len(raw) <= maxPayloadBytes {
 			return
@@ -230,10 +224,8 @@ func shrinkLargestTextField(ctx *AgentContext) bool {
 	return true
 }
 
-// SanitizeAgentContext applies redaction (unless disabled) and size limits.
-// It is the single choke point called by SaveAgentContext before persisting,
-// and the shared entry point for any future code that ships context off the
-// machine (e.g. the team-sync service): sanitize before upload, not after.
+// Single choke point: sanitize here before persisting or uploading context
+// anywhere (e.g. the future team-sync service), never after.
 func SanitizeAgentContext(ctx *AgentContext) {
 	if redactionEnabled() {
 		redactAgentContext(ctx)

@@ -298,12 +298,28 @@ func TestEnforceSizeLimitsTruncatesFields(t *testing.T) {
 }
 
 func TestEnforceSizeLimitsTotalCap(t *testing.T) {
+	big := func(n int) string { return strings.Repeat("\u65e5", n) }
+	bigList := func() []string {
+		items := make([]string, 20)
+		for i := range items {
+			items[i] = big(200)
+		}
+		return items
+	}
 	ctx := &AgentContext{
-		IntentSummary: "keep me",
-		PlannedDelta:  strings.Repeat("日", 20000),
-		ActualDelta:   strings.Repeat("€", 20000),
-		Decisions:     []string{strings.Repeat("🚀", 5000)},
-		Risks:         []string{strings.Repeat("中", 5000)},
+		Provider:                big(200),
+		TaskID:                  big(200),
+		Repo:                    big(200),
+		Branch:                  big(200),
+		BaseCommit:              big(200),
+		IntentSummary:           big(500),
+		CommitMessageSuggestion: big(500),
+		PlannedDelta:            big(2000),
+		ActualDelta:             big(2000),
+		ActiveFiles:             bigList(),
+		Decisions:               bigList(),
+		Risks:                   bigList(),
+		NextSteps:               bigList(),
 	}
 
 	enforceSizeLimits(ctx)
@@ -320,11 +336,10 @@ func TestEnforceSizeLimitsTotalCap(t *testing.T) {
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatalf("payload is not valid JSON: %v", err)
 	}
-	if decoded.IntentSummary != "keep me" {
-		t.Errorf("intent = %q, want small fields preserved", decoded.IntentSummary)
-	}
-	if !utf8.ValidString(decoded.PlannedDelta) || !utf8.ValidString(decoded.ActualDelta) {
-		t.Error("shrunk fields are not valid UTF-8")
+	for _, f := range []string{decoded.IntentSummary, decoded.PlannedDelta, decoded.ActualDelta} {
+		if !utf8.ValidString(f) {
+			t.Error("shrunk field is not valid UTF-8")
+		}
 	}
 }
 
