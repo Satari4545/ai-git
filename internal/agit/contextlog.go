@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	gitwrap "github.com/Satari4545/ai-git/internal/git"
 )
 
 const defaultContextLogCount = 20
@@ -177,55 +175,7 @@ func summarizeNote(raw []byte) (*noteSummary, error) {
 }
 
 func buildContextLog(opts contextLogOptions) ([]contextLogEntry, error) {
-	logArgs := []string{
-		"log",
-		"--format=%H%x00%h%x00%ad%x00%s",
-		"--date=short",
-		"-n", strconv.Itoa(opts.maxCount),
-	}
-	if len(opts.paths) > 0 {
-		logArgs = append(logArgs, "--")
-		logArgs = append(logArgs, opts.paths...)
-	}
-
-	out, err := gitwrap.OutputQuiet(logArgs...)
-	if err != nil {
-		return nil, fmt.Errorf("git log failed: %w", err)
-	}
-	if out == "" {
-		return []contextLogEntry{}, nil
-	}
-
-	entries := make([]contextLogEntry, 0, opts.maxCount)
-	for _, line := range strings.Split(out, "\n") {
-		fields := strings.Split(line, "\x00")
-		if len(fields) != 4 {
-			continue
-		}
-		entry := contextLogEntry{
-			Commit:  fields[0],
-			Short:   fields[1],
-			Date:    fields[2],
-			Subject: fields[3],
-		}
-
-		noteRaw, noteErr := gitwrap.OutputQuiet("notes", "--ref=agit", "show", entry.Commit)
-		if noteErr != nil || noteRaw == "" {
-			entries = append(entries, entry)
-			continue
-		}
-
-		entry.HasNote = true
-		summary, sumErr := summarizeNote([]byte(noteRaw))
-		if sumErr != nil {
-			entry.NoteError = sumErr.Error()
-		} else {
-			entry.Summary = summary
-		}
-		entries = append(entries, entry)
-	}
-
-	return entries, nil
+	return walkContextLogEntries(opts.maxCount, "HEAD", "", opts.paths)
 }
 
 func printContextLog(entries []contextLogEntry) {
