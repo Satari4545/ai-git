@@ -56,7 +56,7 @@ func noteForHEAD(t *testing.T, dir string) string {
 	return string(out)
 }
 
-func TestFirstNonFlagArg(t *testing.T) {
+func TestRemoteFromArgs(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -67,11 +67,12 @@ func TestFirstNonFlagArg(t *testing.T) {
 		{"flags before remote", []string{"--prune", "upstream"}, "upstream"},
 		{"remote and branch", []string{"origin", "main"}, "origin"},
 		{"value flag skipped", []string{"--depth", "1", "origin"}, "origin"},
+		{"flag-only args default to origin", []string{"--tags"}, "origin"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := firstNonFlagArg(tt.args); got != tt.want {
-				t.Errorf("firstNonFlagArg(%v) = %q, want %q", tt.args, got, tt.want)
+			if got := remoteFromArgs(tt.args); got != tt.want {
+				t.Errorf("remoteFromArgs(%v) = %q, want %q", tt.args, got, tt.want)
 			}
 		})
 	}

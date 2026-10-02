@@ -11,10 +11,7 @@ func Push(args []string) error {
 		return err
 	}
 
-	remote := "origin"
-	if len(args) > 0 && args[0] != "" {
-		remote = args[0]
-	}
+	remote := remoteFromArgs(args)
 
 	fmt.Println("agit: pushing logic notes")
 
