@@ -10,7 +10,6 @@ import (
 	"github.com/Satari4545/ai-git/internal/testutil"
 )
 
-// setupBareRemote creates an empty bare repo whose HEAD points at main.
 func setupBareRemote(t *testing.T) string {
 	t.Helper()
 	bare := t.TempDir()
@@ -19,21 +18,17 @@ func setupBareRemote(t *testing.T) string {
 	return bare
 }
 
-// commitWithNote creates an empty commit with an agit note in dir.
 func commitWithNote(t *testing.T, dir, msg, note string) {
 	t.Helper()
 	testutil.RunGit(t, dir, "commit", "--allow-empty", "-q", "-m", msg)
 	testutil.RunGit(t, dir, "notes", "--ref=agit", "add", "-m", note, "HEAD")
 }
 
-// pushBranchAndNotes pushes the current branch as main plus the agit notes
-// ref to the bare remote.
 func pushBranchAndNotes(t *testing.T, dir, bare string) {
 	t.Helper()
 	testutil.RunGit(t, dir, "push", "-q", bare, "HEAD:refs/heads/main", NotesRef+":"+NotesRef)
 }
 
-// chdir swaps the process cwd to dir, restoring on cleanup.
 func chdir(t *testing.T, dir string) {
 	t.Helper()
 	oldwd, err := os.Getwd()
@@ -50,7 +45,6 @@ func chdir(t *testing.T, dir string) {
 	})
 }
 
-// noteForHEAD returns the agit note on HEAD in dir, or "" if none.
 func noteForHEAD(t *testing.T, dir string) string {
 	t.Helper()
 	cmd := exec.Command("git", "notes", "--ref=agit", "show", "HEAD")
@@ -85,7 +79,7 @@ func TestFirstNonFlagArg(t *testing.T) {
 
 func TestFetchSyncsNotesFromRemote(t *testing.T) {
 	bare := setupBareRemote(t)
-	work := testutil.InitRepo(t) // chdirs into work
+	work := testutil.InitRepo(t)
 
 	commitWithNote(t, work, "first", `{"contextID":"ctx-fetch-1"}`)
 	pushBranchAndNotes(t, work, bare)
@@ -94,7 +88,6 @@ func TestFetchSyncsNotesFromRemote(t *testing.T) {
 	testutil.RunGit(t, parent, "clone", "-q", bare, "clone")
 	clone := filepath.Join(parent, "clone")
 
-	// Demonstrate the gap this fixes: a plain clone does not carry notes.
 	if got := noteForHEAD(t, clone); got != "" {
 		t.Fatalf("plain clone unexpectedly carried agit notes: %q", got)
 	}
@@ -111,7 +104,7 @@ func TestFetchSyncsNotesFromRemote(t *testing.T) {
 
 func TestFetchToleratesRemoteWithoutNotes(t *testing.T) {
 	bare := setupBareRemote(t)
-	work := testutil.InitRepo(t) // chdirs into work
+	work := testutil.InitRepo(t)
 
 	testutil.RunGit(t, work, "commit", "--allow-empty", "-q", "-m", "no notes here")
 	testutil.RunGit(t, work, "push", "-q", bare, "HEAD:refs/heads/main")
@@ -128,7 +121,7 @@ func TestFetchToleratesRemoteWithoutNotes(t *testing.T) {
 
 func TestPullSyncsNotesFromRemote(t *testing.T) {
 	bare := setupBareRemote(t)
-	work := testutil.InitRepo(t) // chdirs into work
+	work := testutil.InitRepo(t)
 
 	commitWithNote(t, work, "first", `{"contextID":"ctx-pull-1"}`)
 	pushBranchAndNotes(t, work, bare)
@@ -137,7 +130,6 @@ func TestPullSyncsNotesFromRemote(t *testing.T) {
 	testutil.RunGit(t, parent, "clone", "-q", bare, "clone")
 	clone := filepath.Join(parent, "clone")
 
-	// New commit + note lands on the remote after the clone.
 	commitWithNote(t, work, "second", `{"contextID":"ctx-pull-2"}`)
 	pushBranchAndNotes(t, work, bare)
 
