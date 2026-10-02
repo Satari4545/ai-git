@@ -2,8 +2,10 @@ package agit
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -50,8 +52,8 @@ func TestMCPInstallCursor(t *testing.T) {
 
 	config := readMCPConfig(t, filepath.Join(".cursor", "mcp.json"))
 	entry := agitServerEntry(t, config)
-	if entry["command"] != "agit" {
-		t.Errorf("command = %v, want agit", entry["command"])
+	if entry["command"] != agitMCPCommand() {
+		t.Errorf("command = %v, want %s", entry["command"], agitMCPCommand())
 	}
 	args, _ := entry["args"].([]any)
 	if len(args) != 2 || args[0] != "mcp" || args[1] != "serve" {
@@ -136,8 +138,8 @@ func TestMCPInstallGemini(t *testing.T) {
 
 	config := readMCPConfig(t, filepath.Join(".gemini", "settings.json"))
 	entry := agitServerEntry(t, config)
-	if entry["command"] != "agit" {
-		t.Errorf("command = %v, want agit", entry["command"])
+	if entry["command"] != agitMCPCommand() {
+		t.Errorf("command = %v, want %s", entry["command"], agitMCPCommand())
 	}
 	args, _ := entry["args"].([]any)
 	if len(args) != 2 || args[0] != "mcp" || args[1] != "serve" {
@@ -224,5 +226,31 @@ func TestMCPInstallTargetCaseInsensitive(t *testing.T) {
 	}
 	if err := MCPInstall("Gemini"); err != nil {
 		t.Fatalf("MCPInstall(Gemini) failed: %v", err)
+	}
+}
+
+func TestAgitMCPCommand(t *testing.T) {
+	want := "agit"
+	if runtime.GOOS == "windows" {
+		want = "agit.cmd"
+	}
+	if got := agitMCPCommand(); got != want {
+		t.Errorf("agitMCPCommand() = %q, want %q", got, want)
+	}
+}
+
+func TestInstallCodexWritesPlatformCommand(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if err := installCodex(); err != nil {
+		t.Fatal(err)
+	}
+	home, _ := os.UserHomeDir()
+	raw, err := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprintf("command = %q", agitMCPCommand())
+	if !strings.Contains(string(raw), want) {
+		t.Errorf("codex config.toml missing %q:\n%s", want, raw)
 	}
 }

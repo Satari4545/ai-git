@@ -275,7 +275,7 @@ func TestMCPGetHistoryDispatch(t *testing.T) {
 		Params:  json.RawMessage(`{"name":"get_history","arguments":{"n":5}}`),
 	}
 
-	out := captureTestOutput(t, func() { handleToolCall(req) })
+	out := captureTestOutput(t, func() { (&mcpSession{out: os.Stdout}).handleToolCall(req) })
 
 	var resp MCPResponse
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &resp); err != nil {
@@ -314,7 +314,7 @@ func TestMCPGetHistoryDispatchInvalidN(t *testing.T) {
 		Params:  json.RawMessage(`{"name":"get_history","arguments":{"n":0}}`),
 	}
 
-	out := captureTestOutput(t, func() { handleToolCall(req) })
+	out := captureTestOutput(t, func() { (&mcpSession{out: os.Stdout}).handleToolCall(req) })
 
 	var resp MCPResponse
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &resp); err != nil {
