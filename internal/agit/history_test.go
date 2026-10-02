@@ -355,7 +355,6 @@ func TestMCPToolsListIncludesGetHistory(t *testing.T) {
 	}
 }
 
-
 func TestGetHistoryOutsideRepo(t *testing.T) {
 	dir := t.TempDir()
 	oldwd, err := os.Getwd()
