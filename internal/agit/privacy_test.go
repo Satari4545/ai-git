@@ -15,7 +15,7 @@ func TestRedactStringPatterns(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  string
-		secret string // must be absent from the output
+		secret string
 	}{
 		{
 			name:   "openai key",
@@ -111,7 +111,7 @@ func TestRedactStringNoFalsePositives(t *testing.T) {
 }
 
 func TestRedactionDefaultOn(t *testing.T) {
-	testutil.InitRepo(t) // no agit.redact config set
+	testutil.InitRepo(t)
 	if !redactionEnabled() {
 		t.Error("redactionEnabled() = false with no config, want true (default ON)")
 	}
@@ -137,7 +137,6 @@ func TestAgitConfigRedactToggle(t *testing.T) {
 		t.Error("redactionEnabled() = false after 'agit config redact on', want true")
 	}
 
-	// Config change must be visible to a fresh read of git config.
 	value := testutil.RunGit(t, dir, "config", "--get", "agit.redact")
 	if strings.TrimSpace(value) != "true" {
 		t.Errorf("git config agit.redact = %q, want %q", value, "true")
@@ -145,7 +144,7 @@ func TestAgitConfigRedactToggle(t *testing.T) {
 }
 
 func TestSaveAgentContextRedactsSecrets(t *testing.T) {
-	testutil.InitRepo(t) // chdirs into the repo; redaction defaults ON
+	testutil.InitRepo(t)
 
 	secret := "ghp_abcdefghijklmnopqrstuvwxyz1234567890"
 	ctx := &AgentContext{
@@ -202,9 +201,6 @@ func TestRedactionCanBeDisabled(t *testing.T) {
 	}
 }
 
-// TestNotePayloadIsRedacted proves the git-note path is sanitized: commit.go
-// attaches whatever LoadAgentContext returns, so a redacted state file means
-// a redacted note.
 func TestNotePayloadIsRedacted(t *testing.T) {
 	testutil.InitRepo(t)
 
@@ -222,7 +218,6 @@ func TestNotePayloadIsRedacted(t *testing.T) {
 		t.Fatalf("LoadAgentContext = %v, %v", loaded, err)
 	}
 
-	// Marshal the same way commit.go builds the note payload.
 	notePayload := map[string]any{"agentContext": loaded}
 	raw, err := json.Marshal(notePayload)
 	if err != nil {
@@ -240,8 +235,6 @@ func TestNotePayloadIsRedacted(t *testing.T) {
 func TestRedactBeforeTruncate(t *testing.T) {
 	testutil.InitRepo(t)
 
-	// Secret sits past the truncation point: redaction must run before
-	// truncation, otherwise the secret fragment would survive.
 	ctx := &AgentContext{
 		IntentSummary: strings.Repeat("a", 600) + " password=hunter2",
 	}
@@ -258,10 +251,10 @@ func TestRedactBeforeTruncate(t *testing.T) {
 func TestEnforceSizeLimitsTruncatesFields(t *testing.T) {
 	ctx := &AgentContext{
 		Provider:                strings.Repeat("p", 300),
-		IntentSummary:           strings.Repeat("日", 600), // multi-byte: 3 bytes each
+		IntentSummary:           strings.Repeat("日", 600),
 		CommitMessageSuggestion: strings.Repeat("m", 600),
 		PlannedDelta:            strings.Repeat("d", 2500),
-		ActualDelta:             strings.Repeat("🚀", 2500), // 4-byte runes
+		ActualDelta:             strings.Repeat("🚀", 2500),
 		Decisions:               make([]string, 25),
 		Risks:                   []string{strings.Repeat("r", 300)},
 	}
@@ -296,7 +289,7 @@ func TestEnforceSizeLimitsTruncatesFields(t *testing.T) {
 		}
 	}
 
-	if len(ctx.Decisions) != maxListItems+1 { // 20 items + "+N more" marker
+	if len(ctx.Decisions) != maxListItems+1 {
 		t.Errorf("decisions has %d items, want %d", len(ctx.Decisions), maxListItems+1)
 	}
 	if last := ctx.Decisions[len(ctx.Decisions)-1]; last != "+5 more" {
@@ -323,7 +316,6 @@ func TestEnforceSizeLimitsTotalCap(t *testing.T) {
 		t.Errorf("payload is %d bytes, want <= %d", len(raw), maxPayloadBytes)
 	}
 
-	// The record survives: it is valid JSON and the small fields are intact.
 	var decoded AgentContext
 	if err := json.Unmarshal(raw, &decoded); err != nil {
 		t.Fatalf("payload is not valid JSON: %v", err)
