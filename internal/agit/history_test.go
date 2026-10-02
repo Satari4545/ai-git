@@ -354,3 +354,23 @@ func TestMCPToolsListIncludesGetHistory(t *testing.T) {
 		t.Errorf("tools/list response missing existing get_context (regression):\n%s", out)
 	}
 }
+
+
+func TestGetHistoryOutsideRepo(t *testing.T) {
+	dir := t.TempDir()
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(oldwd); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if _, err := GetHistory(10, "", ""); err == nil || !strings.Contains(err.Error(), "not a git repository") {
+		t.Errorf("GetHistory outside repo = %v, want 'not a git repository' error", err)
+	}
+}

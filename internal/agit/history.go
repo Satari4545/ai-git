@@ -30,6 +30,9 @@ type HistoryEntry struct {
 
 // Entries come back newest first. An empty branch means the current branch.
 func GetHistory(n int, branch string, since string) ([]HistoryEntry, error) {
+	if _, err := gitwrap.OutputQuiet("rev-parse", "--git-dir"); err != nil {
+		return nil, fmt.Errorf("not a git repository")
+	}
 	count, err := normalizeHistoryCount(n)
 	if err != nil {
 		return nil, err
