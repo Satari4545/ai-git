@@ -3,6 +3,7 @@ package agit
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -77,6 +78,7 @@ func ActiveBridge() (AgentBridge, error) {
 const bridgeUsage = `usage: agit bridge list
        agit bridge <agent> install|provider|feed
        agit bridge codex session set <id>|get|unset
+       agit bridge pi session set <id>|get|unset
        agit bridge claude-code hook`
 
 // Bridge implements `agit bridge`: generic verbs dispatch through the
@@ -99,6 +101,11 @@ func Bridge(args []string) error {
 	// Codex session management predates the registry; keep it working.
 	if name == "codex" && len(args) > 1 && args[1] == "session" {
 		return codexBridgeSession(args[2:])
+	}
+
+	// Pi session management mirrors codex: pin the target Pi session.
+	if name == "pi" && len(args) > 1 && args[1] == "session" {
+		return piBridgeSession(args[2:])
 	}
 
 	// The Claude Code SessionStart hook entry point.
@@ -159,4 +166,22 @@ func normalizeProviderContext(raw []byte, providerName string) ([]byte, error) {
 	}
 	ctx.Provider = firstNonEmpty(ctx.Provider, providerName)
 	return json.Marshal(ctx)
+}
+
+// bridgeSessionID resolves a pinned agent session id: explicit env
+// override first, then the repo's git config. Empty means "use the
+// agent's default latest-session resolution".
+func bridgeSessionID(envKey, configKey string) string {
+	if sessionID := os.Getenv(envKey); sessionID != "" {
+		return sessionID
+	}
+
+	sessionID, _ := gitwrapOutputConfig(configKey)
+	return sessionID
+}
+
+// checkoutFeedPrompt renders the restored-checkout prompt shared by the
+// bridges that can append a turn to a live agent session.
+func checkoutFeedPrompt(raw []byte) string {
+	return "The user just checked out a branch. Read this ai-git restored checkout context and use it as working context for future coding help. Do not summarize it back unless asked.\n\n" + string(raw)
 }

@@ -140,6 +140,21 @@ context at the start of your next Claude Code session in that repo, and
 `agit bridge claude-code feed` also writes it to
 `.agit/state/claude-code-feed.md` for manual paste.
 
+### Pi
+
+```sh
+agit bridge pi install
+agit mcp install pi
+```
+
+This wires `agit commit` to ask Pi for context JSON via
+`pi [--session <id> | --continue] -p ...`, and selects the bridge. After
+`agit checkout` restores context, `agit bridge pi feed` (or the automatic
+`--feed-context` flow) appends it as a turn to the Pi session, runs one
+model turn, and persists it to the session file. Pin the target session
+with `agit bridge pi session set <session-id>`; with no session pinned,
+Pi's `--continue` resumes the most recent one.
+
 If no session is configured, the Codex bridge uses `codex exec resume --last`.
 
 Checkout feed is automatic by default: it feeds the restored context to
