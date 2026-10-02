@@ -6,12 +6,15 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     name: Build release binaries
     runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      id-token: write
     strategy:
       matrix:
         include:
@@ -30,6 +33,9 @@ jobs:
           - goos: windows
             goarch: amd64
             output: agit-windows-amd64.exe
+          - goos: windows
+            goarch: arm64
+            output: agit-windows-arm64.exe
 
     steps:
       - name: Checkout
@@ -38,7 +44,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version-file: go.mod
 
       - name: Test
         run: go test ./...
@@ -53,6 +59,18 @@ jobs:
       - name: Generate checksum
         run: sha256sum "dist/${{ matrix.output }}" > "dist/${{ matrix.output }}.sha256"
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign binary
+        run: cosign sign-blob --yes --output-signature "dist/${{ matrix.output }}.sig" --output-certificate "dist/${{ matrix.output }}.pem" "dist/${{ matrix.output }}"
+
+      - name: Attest build provenance
+        if: github.repository_visibility == 'public'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: "dist/${{ matrix.output }}"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -60,11 +78,15 @@ jobs:
           path: |
             dist/${{ matrix.output }}
             dist/${{ matrix.output }}.sha256
+            dist/${{ matrix.output }}.sig
+            dist/${{ matrix.output }}.pem
 
   publish:
     name: Publish GitHub release
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      contents: write
 
     steps:
       - name: Download artifacts
@@ -76,4 +98,11 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          files: dist/*
+
+      - name: Publish to public binary repo
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: Satari4545/ai-git-releases
+          token: ${{ secrets.RELEASE_PAT }}
           files: dist/*

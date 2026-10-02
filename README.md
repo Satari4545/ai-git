@@ -1,5 +1,7 @@
 # ai-git
 
+[![CI](https://github.com/Satari4545/ai-git/actions/workflows/ci.yml/badge.svg)](https://github.com/Satari4545/ai-git/actions/workflows/ci.yml)
+
 ai-git is a closed-source CLI that records AI coding-agent context alongside commits.
 
 The intended flow is:
