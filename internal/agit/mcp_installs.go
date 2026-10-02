@@ -19,8 +19,10 @@ func MCPInstall(target string) error {
 		return installPi()
 	case "cursor":
 		return installCursor()
+	case "gemini":
+		return installGemini()
 	default:
-		return fmt.Errorf("unsupported MCP target: %s (supported: codex, claude, pi, cursor)", target)
+		return fmt.Errorf("unsupported MCP target: %s (supported: codex, claude, pi, cursor, gemini)", target)
 	}
 }
 
@@ -135,6 +137,14 @@ func installCursor() error {
 		return err
 	}
 	return installJSONMCPTarget("Cursor", filepath.Join(home, ".cursor", "mcp.json"), nil)
+}
+
+func installGemini() error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	return installJSONMCPTarget("Gemini CLI", filepath.Join(home, ".gemini", "settings.json"), nil)
 }
 
 // installJSONMCPTarget merges the agit stdio server into the agent's JSON
