@@ -234,7 +234,7 @@ func TestGetHistorySinceFilter(t *testing.T) {
 	}
 }
 
-func captureStdout(t *testing.T, fn func()) string {
+func captureTestOutput(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stdout
 	r, w, err := os.Pipe()
@@ -275,7 +275,7 @@ func TestMCPGetHistoryDispatch(t *testing.T) {
 		Params:  json.RawMessage(`{"name":"get_history","arguments":{"n":5}}`),
 	}
 
-	out := captureStdout(t, func() { handleToolCall(req) })
+	out := captureTestOutput(t, func() { handleToolCall(req) })
 
 	var resp MCPResponse
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &resp); err != nil {
@@ -314,7 +314,7 @@ func TestMCPGetHistoryDispatchInvalidN(t *testing.T) {
 		Params:  json.RawMessage(`{"name":"get_history","arguments":{"n":0}}`),
 	}
 
-	out := captureStdout(t, func() { handleToolCall(req) })
+	out := captureTestOutput(t, func() { handleToolCall(req) })
 
 	var resp MCPResponse
 	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &resp); err != nil {
@@ -341,7 +341,7 @@ func TestMCPToolsListIncludesGetHistory(t *testing.T) {
 	}
 	stdinW.Close()
 
-	out := captureStdout(t, func() {
+	out := captureTestOutput(t, func() {
 		if err := MCPServe(); err != nil {
 			t.Errorf("MCPServe = %v", err)
 		}
