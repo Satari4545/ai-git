@@ -17,8 +17,10 @@ func MCPInstall(target string) error {
 		return installClaude()
 	case "pi":
 		return installPi()
+	case "cursor":
+		return installCursor()
 	default:
-		return fmt.Errorf("unsupported MCP target: %s (supported: codex, claude, pi)", target)
+		return fmt.Errorf("unsupported MCP target: %s (supported: codex, claude, pi, cursor)", target)
 	}
 }
 
@@ -100,7 +102,18 @@ func installPi() error {
 	// No pi on PATH: write the user-level mcp.json directly, in Pi's
 	// documented {"mcpServers": {...}} schema. A corrupt file is an
 	// error, never silently overwritten.
-	return installPiMCPJSON()
+	agentDir, err := piAgentDir()
+	if err != nil {
+		return err
+	}
+	if err := installJSONMCPTarget("Pi", filepath.Join(agentDir, "mcp.json"), map[string]any{
+		"description": agitMCPDescription,
+	}); err != nil {
+		return err
+	}
+	fmt.Println("For a single project instead, copy the entry into that repo's .pi/mcp.json.")
+	fmt.Println("Restart Pi sessions and run `pi mcp list` to verify.")
+	return nil
 }
 
 // piAgentDir is Pi's user-level config dir: $PI_CODING_AGENT_DIR, or
@@ -116,55 +129,69 @@ func piAgentDir() (string, error) {
 	return filepath.Join(home, ".pi", "agent"), nil
 }
 
-func installPiMCPJSON() error {
-	agentDir, err := piAgentDir()
+func installCursor() error {
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	configPath := filepath.Join(agentDir, "mcp.json")
+	return installJSONMCPTarget("Cursor", filepath.Join(home, ".cursor", "mcp.json"), nil)
+}
+
+// installJSONMCPTarget merges the agit stdio server into the agent's JSON
+// MCP config file at configPath. The {"mcpServers": ...} shape is shared
+// by Cursor, Pi, Gemini and other JSON-file MCP clients. Existing entries
+// are preserved, the install is idempotent, and a corrupt file (or a
+// non-object mcpServers value) is an error rather than silently
+// overwritten. extraFields adds client-specific entry keys, such as Pi's
+// description.
+func installJSONMCPTarget(displayName string, configPath string, extraFields map[string]any) error {
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return err
+	}
 
 	config := map[string]any{}
-	if raw, err := os.ReadFile(configPath); err == nil {
+	raw, err := os.ReadFile(configPath)
+	switch {
+	case err == nil:
 		if err := json.Unmarshal(raw, &config); err != nil {
 			return fmt.Errorf("your %s is not valid JSON; fix it or move it aside, then re-run install: %w", configPath, err)
 		}
 		if config == nil {
 			return fmt.Errorf("your %s does not contain a JSON object; fix it or move it aside, then re-run install", configPath)
 		}
-	} else if !os.IsNotExist(err) {
+	case os.IsNotExist(err):
+	default:
 		return err
 	}
 
-	servers, _ := config["mcpServers"].(map[string]any)
-	if servers == nil {
+	servers, ok := config["mcpServers"].(map[string]any)
+	if !ok {
+		if v, exists := config["mcpServers"]; exists && v != nil {
+			return fmt.Errorf("your %s has a \"mcpServers\" value that is not an object; fix it or move it aside, then re-run install", configPath)
+		}
 		servers = map[string]any{}
 		config["mcpServers"] = servers
 	}
-	if _, ok := servers["agit"]; ok {
-		fmt.Println("agit MCP server already configured for Pi.")
+	if _, exists := servers["agit"]; exists {
+		fmt.Printf("agit MCP server already configured for %s.\n", displayName)
 		fmt.Println("Config:", configPath)
 		return nil
 	}
-	servers["agit"] = map[string]any{
-		"command":     "agit",
-		"args":        []any{"mcp", "serve"},
-		"description": agitMCPDescription,
+	entry := map[string]any{"command": "agit", "args": []string{"mcp", "serve"}}
+	for k, v := range extraFields {
+		entry[k] = v
 	}
+	servers["agit"] = entry
 
-	if err := os.MkdirAll(agentDir, 0o755); err != nil {
-		return err
-	}
 	out, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(configPath, append(out, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(configPath, append(out, '\n'), 0644); err != nil {
 		return err
 	}
 
-	fmt.Println("Installed agit MCP server for Pi.")
+	fmt.Printf("Installed agit MCP server for %s.\n", displayName)
 	fmt.Println("Config:", configPath)
-	fmt.Println("For a single project instead, copy the entry into that repo's .pi/mcp.json.")
-	fmt.Println("Restart Pi sessions and run `pi mcp list` to verify.")
 	return nil
 }

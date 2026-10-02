@@ -2,7 +2,6 @@ package agit
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -65,13 +64,13 @@ func (piBridge) Provide() ([]byte, error) {
 
 // Feed delivers restored checkout context to the Pi session.
 func (piBridge) Feed(ctx *RestoredCheckoutContext) error {
-	raw, err := json.MarshalIndent(ctx, "", "  ")
+	prompt, err := feedPromptContext(ctx)
 	if err != nil {
 		return err
 	}
 
 	var stderr bytes.Buffer
-	cmd := exec.Command(piExecutable(), piPromptArgs(checkoutFeedPrompt(raw))...)
+	cmd := exec.Command(piExecutable(), piPromptArgs(prompt)...)
 	cmd.Stderr = &stderr
 	cmd.Env = append(os.Environ(), "PI_SKIP_VERSION_CHECK=1")
 
@@ -131,33 +130,4 @@ Use this schema:
 }
 
 Use the current Pi session and current repository state. Do not include hidden chain-of-thought. Keep values concise and auditable.`
-}
-
-func piBridgeSession(args []string) error {
-	if len(args) == 2 && args[0] == "set" {
-		if err := gitwrapRunConfig("agit.piSession", args[1]); err != nil {
-			return err
-		}
-		fmt.Println("agit: Pi session configured")
-		return nil
-	}
-
-	if len(args) == 1 && args[0] == "get" {
-		sessionID, _ := gitwrapOutputConfig("agit.piSession")
-		if sessionID == "" {
-			fmt.Println("No Pi session configured. Provider will use --continue.")
-			return nil
-		}
-		fmt.Println(sessionID)
-		return nil
-	}
-
-	if len(args) == 1 && args[0] == "unset" {
-		_ = gitwrapUnsetConfig("agit.piSession")
-		fmt.Println("agit: Pi session unset")
-		return nil
-	}
-
-	fmt.Println("usage: agit bridge pi session set <id>|get|unset")
-	return nil
 }
