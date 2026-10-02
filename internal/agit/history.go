@@ -74,7 +74,6 @@ func GetHistory(n int, branch string, since string) ([]HistoryEntry, error) {
 	return history, nil
 }
 
-// normalizeHistoryCount validates n and caps it at maxHistoryCount.
 func normalizeHistoryCount(n int) (int, error) {
 	if n <= 0 {
 		return 0, fmt.Errorf("invalid history count %d: must be a positive integer", n)
@@ -85,8 +84,6 @@ func normalizeHistoryCount(n int) (int, error) {
 	return n, nil
 }
 
-// resolveHistoryBranch maps an empty branch to the current branch (or HEAD
-// when detached) and verifies a named branch exists.
 func resolveHistoryBranch(branch string) (string, error) {
 	if branch == "" {
 		out, err := gitwrap.OutputQuiet("rev-parse", "--abbrev-ref", "HEAD")
@@ -101,10 +98,9 @@ func resolveHistoryBranch(branch string) (string, error) {
 	return branch, nil
 }
 
-// walkContextLogEntries walks up to maxCount commits reachable from rev,
-// attaching each commit's AGIT note summary. since is an optional
-// `git log --since` filter; paths optionally limits the walk to commits
-// touching those paths.
+// walkContextLogEntries returns up to maxCount commits reachable from rev,
+// each with its AGIT note summary attached. since filters via `git log
+// --since`; paths optionally limits the walk to commits touching those paths.
 func walkContextLogEntries(maxCount int, rev string, since string, paths []string) ([]contextLogEntry, error) {
 	logArgs := []string{
 		"log",
