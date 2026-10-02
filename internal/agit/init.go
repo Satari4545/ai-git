@@ -7,13 +7,10 @@ import (
 	gitwrap "github.com/Satari4545/ai-git/internal/git"
 )
 
-// notesFetchRefspec makes plain `git fetch` also fetch agit notes.
-// It complements `agit fetch`, which fetches notes explicitly.
+// Without this refspec, plain `git fetch` silently skips agit notes;
+// `agit fetch` covers the explicit path, this covers the plain-git path.
 const notesFetchRefspec = "+refs/notes/agit:refs/notes/agit"
 
-// Init sets up the current directory for agit: it initializes a git repo if
-// needed, wires the notes refspec so plain git fetch carries context notes,
-// and prints the 5-minute quickstart. It is idempotent.
 func Init() error {
 	if !inGitRepo() {
 		fmt.Println("agit: no git repo here, running git init")
