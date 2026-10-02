@@ -26,8 +26,21 @@ within 30 days.
   own commits; nothing is sent to any ai-git server (there is none).
 - **Supply chain.** Release binaries are built by GitHub Actions from tagged
   source and published with SHA-256 checksums. The npm installer verifies the
-  checksum and refuses to install on mismatch. SLSA build provenance
-  attestations are added automatically when the repository plan supports them.
+  checksum and refuses to install on mismatch. Each binary also ships a
+  Sigstore signature (`<binary>.sig`) and certificate (`<binary>.pem`),
+  signed keylessly by the release workflow, so anyone can verify the binary
+  came from this project's CI:
+
+  ```sh
+  cosign verify-blob --cert agit-linux-amd64.pem \
+    --signature agit-linux-amd64.sig \
+    --certificate-identity-regexp 'https://github\.com/Satari4545/ai-git/.*' \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    agit-linux-amd64
+  ```
+
+  SLSA build provenance attestations are added automatically when the
+  repository plan supports them.
 - **Secrets.** ai-git redacts common secret patterns from recorded context
   before writing notes. Treat context notes with the same care as commit
   messages: they travel with your repo.

@@ -33,6 +33,9 @@ jobs:
           - goos: windows
             goarch: amd64
             output: agit-windows-amd64.exe
+          - goos: windows
+            goarch: arm64
+            output: agit-windows-arm64.exe
 
     steps:
       - name: Checkout
@@ -56,6 +59,12 @@ jobs:
       - name: Generate checksum
         run: sha256sum "dist/${{ matrix.output }}" > "dist/${{ matrix.output }}.sha256"
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign binary
+        run: cosign sign-blob --yes --output-signature "dist/${{ matrix.output }}.sig" --output-certificate "dist/${{ matrix.output }}.pem" "dist/${{ matrix.output }}"
+
       - name: Attest build provenance
         if: github.repository_visibility == 'public'
         uses: actions/attest-build-provenance@v1
@@ -69,6 +78,8 @@ jobs:
           path: |
             dist/${{ matrix.output }}
             dist/${{ matrix.output }}.sha256
+            dist/${{ matrix.output }}.sig
+            dist/${{ matrix.output }}.pem
 
   publish:
     name: Publish GitHub release
