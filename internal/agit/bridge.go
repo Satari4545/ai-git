@@ -100,11 +100,7 @@ func BridgeExecutable(name string) (string, error) {
 
 const bridgeUsage = `usage: agit bridge list
        agit bridge <agent> install|provider|feed
-       agit bridge codex session set <id>|get|unset|list
-       agit bridge pi session set <id>|get|unset|list
-       agit bridge cursor session set <id>|get|unset|list
-       agit bridge gemini session set <id>|get|unset|list
-       agit bridge opencode session set <id>|get|unset|list
+       agit bridge <agent> session set <id>|get|unset|list
        agit bridge claude-code hook`
 
 // Bridge implements `agit bridge`: generic verbs dispatch through the
