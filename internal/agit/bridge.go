@@ -81,6 +81,7 @@ const bridgeUsage = `usage: agit bridge list
        agit bridge pi session set <id>|get|unset
        agit bridge cursor session set <id>|get|unset
        agit bridge gemini session set <id>|get|unset
+       agit bridge opencode session set <id>|get|unset
        agit bridge claude-code hook`
 
 // Bridge implements `agit bridge`: generic verbs dispatch through the
@@ -101,7 +102,7 @@ func Bridge(args []string) error {
 	name := args[0]
 
 	// Session management for bridges whose CLI can inject into a live
-	// session (codex, cursor, pi, gemini). Each keeps its own git config key
+	// session (codex, cursor, pi, gemini, opencode). Each keeps its own git config key
 	// and env override, so the verb stays agent-scoped.
 	if len(args) > 1 && args[1] == "session" {
 		switch name {
@@ -113,6 +114,8 @@ func Bridge(args []string) error {
 			return bridgeSessionCommand(name, "Pi", "agit.piSession", "--continue", args[2:])
 		case "gemini":
 			return bridgeSessionCommand(name, "Gemini CLI", "agit.geminiSession", "--resume latest", args[2:])
+		case "opencode":
+			return bridgeSessionCommand(name, "OpenCode", "agit.opencodeSession", "--continue", args[2:])
 		}
 	}
 
