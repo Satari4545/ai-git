@@ -126,11 +126,92 @@ func TestMCPInstallCursorRefusesCorrupt(t *testing.T) {
 	}
 }
 
+func TestMCPInstallGemini(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	if err := MCPInstall("gemini"); err != nil {
+		t.Fatalf("MCPInstall failed: %v", err)
+	}
+
+	config := readMCPConfig(t, filepath.Join(".gemini", "settings.json"))
+	entry := agitServerEntry(t, config)
+	if entry["command"] != "agit" {
+		t.Errorf("command = %v, want agit", entry["command"])
+	}
+	args, _ := entry["args"].([]any)
+	if len(args) != 2 || args[0] != "mcp" || args[1] != "serve" {
+		t.Errorf("args = %v, want [mcp serve]", args)
+	}
+
+	if err := MCPInstall("gemini"); err != nil {
+		t.Fatalf("second MCPInstall failed: %v", err)
+	}
+	config = readMCPConfig(t, filepath.Join(".gemini", "settings.json"))
+	servers := config["mcpServers"].(map[string]any)
+	count := 0
+	for name := range servers {
+		if name == "agit" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("install is not idempotent, agit entries: %d", count)
+	}
+}
+
+func TestMCPInstallGeminiPreservesExisting(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	geminiDir := filepath.Join(home, ".gemini")
+	if err := os.MkdirAll(geminiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	existing := `{"theme": "dark", "mcpServers": {"other": {"command": "other-server"}}}`
+	if err := os.WriteFile(filepath.Join(geminiDir, "settings.json"), []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := MCPInstall("gemini"); err != nil {
+		t.Fatalf("MCPInstall failed: %v", err)
+	}
+
+	config := readMCPConfig(t, filepath.Join(".gemini", "settings.json"))
+	if config["theme"] != "dark" {
+		t.Errorf("existing settings key lost: %v", config)
+	}
+	servers := config["mcpServers"].(map[string]any)
+	if _, ok := servers["other"]; !ok {
+		t.Errorf("existing server entry lost: %v", servers)
+	}
+	agitServerEntry(t, config)
+}
+
+func TestMCPInstallGeminiRefusesCorrupt(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	geminiDir := filepath.Join(home, ".gemini")
+	if err := os.MkdirAll(geminiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	corrupt := []byte("null")
+	if err := os.WriteFile(filepath.Join(geminiDir, "settings.json"), corrupt, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := MCPInstall("gemini")
+	if err == nil || !strings.Contains(err.Error(), "settings.json") {
+		t.Errorf("expected error naming settings.json, got: %v", err)
+	}
+}
+
 func TestMCPInstallUnsupportedTarget(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	err := MCPInstall("windsurf")
-	if err == nil || !strings.Contains(err.Error(), "supported: codex, claude, pi, cursor") {
+	if err == nil || !strings.Contains(err.Error(), "supported: codex, claude, pi, cursor, gemini") {
 		t.Errorf("expected supported-targets error, got: %v", err)
 	}
 }
@@ -140,5 +221,8 @@ func TestMCPInstallTargetCaseInsensitive(t *testing.T) {
 
 	if err := MCPInstall("CURSOR"); err != nil {
 		t.Fatalf("MCPInstall(CURSOR) failed: %v", err)
+	}
+	if err := MCPInstall("Gemini"); err != nil {
+		t.Fatalf("MCPInstall(Gemini) failed: %v", err)
 	}
 }

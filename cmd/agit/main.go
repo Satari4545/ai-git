@@ -114,7 +114,7 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
-			fmt.Println("usage: agit mcp record-context|get-context|serve|install <codex|claude|pi|cursor>")
+			fmt.Println("usage: agit mcp record-context|get-context|serve|install <codex|claude|pi|cursor|gemini>")
 		}
 	default:
 		if err := gitwrap.RunPassthrough(os.Args[1:]...); err != nil {
