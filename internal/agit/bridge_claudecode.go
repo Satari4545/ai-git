@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -51,26 +49,19 @@ func (claudeCodeBridge) Install() error {
 	return nil
 }
 
-// Provide asks Claude Code for fresh context JSON via print mode. The
-// response is parsed and normalized by the generic provider verb.
+// Provide asks Claude Code for fresh context JSON via print mode, then
+// extracts the model's answer from the CLI's JSON envelope.
 func (claudeCodeBridge) Provide() ([]byte, error) {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(claudeCodeExecutable(), "-p", "--output-format", "json", claudeCodeContextPrompt())
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = err.Error()
-		}
-		return nil, fmt.Errorf("Claude Code context bridge failed: %s", message)
+	out, err := runBridgeProvide(claudeCodeBridge{},
+		[]string{"-p", "--output-format", "json", claudeCodeContextPrompt()}, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	var envelope struct {
 		Result string `json:"result"`
 	}
-	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+	if err := json.Unmarshal(out, &envelope); err != nil {
 		return nil, fmt.Errorf("Claude Code did not return a JSON envelope: %w", err)
 	}
 	if strings.TrimSpace(envelope.Result) == "" {
@@ -101,29 +92,11 @@ func (claudeCodeBridge) Feed(ctx *RestoredCheckoutContext) error {
 }
 
 func claudeCodeExecutable() string {
-	if runtime.GOOS == "windows" {
-		return "claude.cmd"
-	}
-	return "claude"
+	return bridgeExecutableName("claude", ".cmd")
 }
 
 func claudeCodeContextPrompt() string {
-	return `Return ONLY a JSON object for ai-git agent context. Do not include markdown or commentary.
-
-Use this schema:
-{
-  "provider": "claude-code",
-  "intent": "short task intent",
-  "message": "suggested git commit message",
-  "files": ["path/to/file"],
-  "planned": "planned change summary",
-  "actual": "actual change summary",
-  "decisions": ["important decision"],
-  "risks": ["risk or caveat"],
-  "nextSteps": ["useful next step"]
-}
-
-Use the current repository state (git status, recent commits, diffs). Do not include hidden chain-of-thought. Keep values concise and auditable.`
+	return bridgeContextPrompt("claude-code", "Use the current repository state (git status, recent commits, diffs).")
 }
 
 // claudeCodeHook implements `agit bridge claude-code hook`, the command
@@ -197,6 +170,9 @@ func installClaudeCodeSessionStartHook() error {
 	raw, err := os.ReadFile(path)
 	switch {
 	case err == nil:
+		if len(bytes.TrimSpace(raw)) == 0 {
+			break
+		}
 		if err := json.Unmarshal(raw, &settings); err != nil {
 			return fmt.Errorf("your %s is not valid JSON; fix it or move it aside, then re-run install: %w", path, err)
 		}

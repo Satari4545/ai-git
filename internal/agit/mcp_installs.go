@@ -1,6 +1,7 @@
 package agit
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -219,7 +220,7 @@ func installJSONMCPTarget(displayName string, configPath string, extraFields map
 	for k, v := range extraFields {
 		entry[k] = v
 	}
-	return mergeMCPServerConfig(displayName, configPath, "mcpServers", entry)
+	return mergeMCPServerConfig(displayName, configPath, "mcpServers", entry, false)
 }
 
 func installOpencode() error {
@@ -231,7 +232,7 @@ func installOpencode() error {
 		"type":    "local",
 		"command": []string{agitMCPCommand(), "mcp", "serve"},
 		"enabled": true,
-	})
+	}, true)
 }
 
 // opencodeConfigPath resolves OpenCode's user-level config file. OpenCode
@@ -253,7 +254,10 @@ func opencodeConfigPath() (string, error) {
 // serversKey ("mcpServers" for most clients, "mcp" for OpenCode). Existing
 // entries are preserved, the install is idempotent, and a corrupt file (or
 // a non-object servers value) is an error rather than silently overwritten.
-func mergeMCPServerConfig(displayName string, configPath string, serversKey string, entry map[string]any) error {
+// An empty file counts as absent config. When allowComments is set
+// (OpenCode's JSONC), a file that only fails to parse because of comments
+// is retried with comments stripped; anything still invalid is refused.
+func mergeMCPServerConfig(displayName string, configPath string, serversKey string, entry map[string]any, allowComments bool) error {
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return err
 	}
@@ -262,8 +266,17 @@ func mergeMCPServerConfig(displayName string, configPath string, serversKey stri
 	raw, err := os.ReadFile(configPath)
 	switch {
 	case err == nil:
+		if len(bytes.TrimSpace(raw)) == 0 {
+			break
+		}
 		if err := json.Unmarshal(raw, &config); err != nil {
-			return fmt.Errorf("your %s is not valid JSON; fix it or move it aside, then re-run install: %w", configPath, err)
+			if !allowComments {
+				return fmt.Errorf("your %s is not valid JSON; fix it or move it aside, then re-run install: %w", configPath, err)
+			}
+			if err := json.Unmarshal(stripJSONComments(raw), &config); err != nil {
+				return fmt.Errorf("your %s is not valid JSON (even ignoring comments); fix it or move it aside, then re-run install: %w", configPath, err)
+			}
+			fmt.Printf("note: comments in %s were normalized during install\n", configPath)
 		}
 		if config == nil {
 			return fmt.Errorf("your %s does not contain a JSON object; fix it or move it aside, then re-run install", configPath)
@@ -299,4 +312,51 @@ func mergeMCPServerConfig(displayName string, configPath string, serversKey stri
 	fmt.Printf("Installed agit MCP server for %s.\n", displayName)
 	fmt.Println("Config:", configPath)
 	return nil
+}
+
+// stripJSONComments removes // line comments and /* */ block comments
+// from JSONC input. String literals are left untouched, including escaped
+// quotes, so comment-looking text inside strings survives. Newlines inside
+// line comments are kept; unterminated block comments are dropped to EOF.
+func stripJSONComments(raw []byte) []byte {
+	var out bytes.Buffer
+	out.Grow(len(raw))
+	inString, escaped, inLine, inBlock := false, false, false, false
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		switch {
+		case inLine:
+			if c == '\n' {
+				inLine = false
+				out.WriteByte(c)
+			}
+		case inBlock:
+			if c == '*' && i+1 < len(raw) && raw[i+1] == '/' {
+				inBlock = false
+				i++
+			}
+		case inString:
+			out.WriteByte(c)
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+			}
+		case c == '"':
+			inString = true
+			out.WriteByte(c)
+		case c == '/' && i+1 < len(raw) && raw[i+1] == '/':
+			inLine = true
+			i++
+		case c == '/' && i+1 < len(raw) && raw[i+1] == '*':
+			inBlock = true
+			i++
+		default:
+			out.WriteByte(c)
+		}
+	}
+	return out.Bytes()
 }

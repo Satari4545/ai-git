@@ -290,3 +290,77 @@ func TestInitSuggestsGenericWhenNoneDetected(t *testing.T) {
 		t.Errorf("init output missing generic suggestion:\n%s", out)
 	}
 }
+
+func TestDoctorOpencodeMCPViaMCPKey(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	dir := testutil.InitRepo(t)
+	testutil.RunGit(t, dir, "config", "agit.bridge", "opencode")
+
+	bin := t.TempDir()
+	writeFakeCLI(t, bin, "opencode", "exit 0\n")
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	configDir := filepath.Join(home, ".config", "opencode")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"mcp": {"agit": {"type": "local", "command": ["agit", "mcp", "serve"], "enabled": true}}}`
+	if err := os.WriteFile(filepath.Join(configDir, "opencode.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	installed, where, err := bridgeMCPInstalled("opencode")
+	if err != nil {
+		t.Fatalf("bridgeMCPInstalled(opencode) = %v, want nil", err)
+	}
+	if !installed {
+		t.Error("bridgeMCPInstalled(opencode) = false, want true")
+	}
+	if !strings.HasSuffix(where, "opencode.json") {
+		t.Errorf("bridgeMCPInstalled(opencode) where = %q, want opencode.json path", where)
+	}
+}
+
+func TestDoctorOpencodeMCPMissingWarns(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	dir := testutil.InitRepo(t)
+	testutil.RunGit(t, dir, "config", "agit.bridge", "opencode")
+
+	bin := t.TempDir()
+	writeFakeCLI(t, bin, "opencode", "exit 0\n")
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	installed, _, err := bridgeMCPInstalled("opencode")
+	if err != nil {
+		t.Fatalf("bridgeMCPInstalled(opencode) = %v, want nil", err)
+	}
+	if installed {
+		t.Error("bridgeMCPInstalled(opencode) = true with no config file, want false")
+	}
+}
+
+func TestDoctorOpencodeMCPKeyNotMcpServers(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	configDir := filepath.Join(home, ".config", "opencode")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"mcpServers": {"agit": {"command": "agit", "args": ["mcp", "serve"]}}}`
+	if err := os.WriteFile(filepath.Join(configDir, "opencode.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	installed, _, err := bridgeMCPInstalled("opencode")
+	if err != nil {
+		t.Fatalf("bridgeMCPInstalled(opencode) = %v, want nil", err)
+	}
+	if installed {
+		t.Error("bridgeMCPInstalled(opencode) = true for mcpServers-key config, want false (OpenCode uses the mcp key)")
+	}
+}

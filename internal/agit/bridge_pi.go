@@ -1,14 +1,5 @@
 package agit
 
-import (
-	"bytes"
-	"fmt"
-	"os"
-	"os/exec"
-	"runtime"
-	"strings"
-)
-
 func init() {
 	RegisterBridge(piBridge{})
 	registerBridgeExecutable("pi", piExecutable)
@@ -31,63 +22,25 @@ func (piBridge) Name() string        { return "pi" }
 func (piBridge) DisplayName() string { return "Pi" }
 
 func (piBridge) Install() error {
-	if err := gitwrapRunConfig("agit.contextCommand", "agit bridge pi provider"); err != nil {
-		return err
-	}
-	if err := gitwrapRunConfig("agit.bridge", "pi"); err != nil {
-		return err
-	}
-
-	fmt.Println("agit: Pi context provider configured")
-	fmt.Println("agit: run 'agit mcp install pi' so Pi can also restore/read context through MCP")
-	return nil
+	return installBridgeProvider(piBridge{})
 }
 
-// Provide asks Pi for fresh context JSON via print mode. The response is
-// parsed and normalized by the generic provider verb.
 func (piBridge) Provide() ([]byte, error) {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(piExecutable(), piPromptArgs(piContextPrompt())...)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(), "PI_SKIP_VERSION_CHECK=1")
-
-	if err := cmd.Run(); err != nil {
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = err.Error()
-		}
-		return nil, fmt.Errorf("Pi context bridge failed: %s", message)
+	out, err := runBridgeProvide(piBridge{},
+		piPromptArgs(piContextPrompt()), []string{"PI_SKIP_VERSION_CHECK=1"})
+	if err != nil {
+		return nil, err
 	}
-
-	return extractJSONObject(stdout.Bytes())
+	return extractJSONObject(out)
 }
 
-// Feed delivers restored checkout context to the Pi session.
 func (piBridge) Feed(ctx *RestoredCheckoutContext) error {
 	prompt, err := feedPromptContext(ctx)
 	if err != nil {
 		return err
 	}
 
-	var stderr bytes.Buffer
-	cmd := exec.Command(piExecutable(), piPromptArgs(prompt)...)
-	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(), "PI_SKIP_VERSION_CHECK=1")
-
-	// The success signal is the exit code, not stdout: the feed prompt
-	// asks the model to stay silent, and anything the CLI prints around
-	// the model turn (version checks, session banners) is noise.
-	if err := cmd.Run(); err != nil {
-		message := strings.TrimSpace(stderr.String())
-		if message == "" {
-			message = err.Error()
-		}
-		return fmt.Errorf("Pi checkout feed failed: %s", message)
-	}
-
-	fmt.Println("agit: fed checkout context to Pi")
-	return nil
+	return runBridgeFeed(piBridge{}, piPromptArgs(prompt), []string{"PI_SKIP_VERSION_CHECK=1"})
 }
 
 // piPromptArgs builds the session-targeting prefix shared by Provide and
@@ -104,10 +57,7 @@ func piPromptArgs(prompt string) []string {
 }
 
 func piExecutable() string {
-	if runtime.GOOS == "windows" {
-		return "pi.cmd"
-	}
-	return "pi"
+	return bridgeExecutableName("pi", ".cmd")
 }
 
 func piSessionID() string {
@@ -115,20 +65,5 @@ func piSessionID() string {
 }
 
 func piContextPrompt() string {
-	return `Return ONLY a JSON object for ai-git agent context. Do not include markdown or commentary.
-
-Use this schema:
-{
-  "provider": "pi",
-  "intent": "short task intent",
-  "message": "suggested git commit message",
-  "files": ["path/to/file"],
-  "planned": "planned change summary",
-  "actual": "actual change summary",
-  "decisions": ["important decision"],
-  "risks": ["risk or caveat"],
-  "nextSteps": ["useful next step"]
-}
-
-Use the current Pi session and current repository state. Do not include hidden chain-of-thought. Keep values concise and auditable.`
+	return bridgeContextPrompt("pi", "Use the current Pi session and current repository state.")
 }
