@@ -143,6 +143,27 @@ func MCPServe() error {
 							"properties": map[string]any{},
 						},
 					},
+					{
+						"name":        "get_history",
+						"description": "Read past AGIT context on a branch, newest first. Use this to see what was done previously on the branch (e.g. what we did yesterday) and continue from where work stopped. Only commits with recorded agent context are returned.",
+						"inputSchema": map[string]any{
+							"type": "object",
+							"properties": map[string]any{
+								"n": map[string]any{
+									"type":        "integer",
+									"description": "Max number of context entries to return. Defaults to 10, capped at 50.",
+								},
+								"branch": map[string]any{
+									"type":        "string",
+									"description": "Branch to read history from. Defaults to the current branch.",
+								},
+								"since": map[string]any{
+									"type":        "string",
+									"description": "Only include commits after this date (git date format, e.g. \"yesterday\", \"2026-09-01\").",
+								},
+							},
+						},
+					},
 				},
 			})
 
@@ -177,6 +198,8 @@ func handleToolCall(req MCPRequest) {
 		handleGetGitState(req.ID)
 	case "get_context_status":
 		handleGetContextStatus(req.ID)
+	case "get_history":
+		handleGetHistory(req.ID, params.Arguments)
 	default:
 		writeMCPError(req.ID, -32601, "unknown tool")
 	}
@@ -266,6 +289,33 @@ func handleGetContext(id any) {
 		return
 	}
 
+	writeTextResult(id, string(raw))
+}
+
+func handleGetHistory(id any, arguments map[string]any) {
+	n := defaultHistoryCount
+	if v, ok := arguments["n"]; ok && v != nil {
+		f, ok := v.(float64)
+		if !ok {
+			writeMCPError(id, -32602, "invalid params: n must be a number")
+			return
+		}
+		n = int(f)
+	}
+	branch, _ := arguments["branch"].(string)
+	since, _ := arguments["since"].(string)
+
+	entries, err := GetHistory(n, branch, since)
+	if err != nil {
+		writeMCPError(id, -32000, err.Error())
+		return
+	}
+
+	raw, err := json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		writeMCPError(id, -32000, err.Error())
+		return
+	}
 	writeTextResult(id, string(raw))
 }
 
