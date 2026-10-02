@@ -34,6 +34,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "agit checkout error:", err)
 			os.Exit(1)
 		}
+	case "init":
+		if err := agit.Init(); err != nil {
+			fmt.Fprintln(os.Stderr, "agit init error:", err)
+			os.Exit(1)
+		}
 	case "debug":
 		if err := agit.DebugHEAD(); err != nil {
 			fmt.Fprintln(os.Stderr, "agit debug error:", err)
@@ -123,6 +128,7 @@ func printHelp() {
 
 Usage:
   agit <git-command> [args...]
+  agit init
   agit commit [git commit args...]
   agit checkout [--feed-context|--no-feed-context] [git checkout args...]
   agit context status
@@ -143,6 +149,7 @@ Usage:
   agit mcp install <codex|claude>
 
 Commands:
+  init                Set up this repo for agit and show the quickstart.
   commit              Commit staged changes and attach AGIT context metadata.
   checkout            Checkout a branch and restore AGIT context from HEAD.
   context status      Show active agent context and Git state.
