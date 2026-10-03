@@ -172,36 +172,24 @@ func installClaude() error {
 const agitMCPDescription = "ai-git: record and restore AI coding-agent context in Git workflows"
 
 func installPi() error {
-	// Prefer Pi's own CLI: `pi mcp add` owns the config layout and the
-	// add/replace semantics, so idempotency comes for free.
+	// Prefer Pi's own CLI when it works: `pi mcp add` owns the config
+	// layout and the add/replace semantics, so idempotency comes for free.
+	// If the CLI fails or hangs, fall back to writing the config directly
+	// so the install never leaves the user stuck.
 	if _, err := exec.LookPath(piExecutable()); err == nil {
-		args := []string{"mcp", "add", "agit", "--", agitMCPCommand(), "mcp", "serve"}
-		fmt.Printf("Running: %s %s\n", piExecutable(), quoteShellArgs(args))
-		// Bound the subprocess: a hung or prompting `pi mcp add` must
-		// fail fast with a clear error instead of stalling the install
-		// with no output. Stdin is closed so it can never block on
-		// interactive input; installs must stay non-interactive.
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, piExecutable(), args...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = strings.NewReader("")
-		if err := cmd.Run(); err != nil {
-			if ctx.Err() == context.DeadlineExceeded {
-				return fmt.Errorf("pi mcp add timed out after 60s (it may be waiting for input); run `pi mcp add agit -- %s mcp serve` yourself", quoteShellArg(agitMCPCommand()))
-			}
-			return fmt.Errorf("pi mcp add failed: %w", err)
+		if err := runPiMCPAdd(); err != nil {
+			fmt.Printf("note: pi mcp add did not complete (%v); writing the config directly.\n", err)
+		} else {
+			fmt.Println("Installed agit MCP server for Pi (user level).")
+			fmt.Println("For a single project instead, run: pi mcp add -l agit -- " + quoteShellArg(agitMCPCommand()) + " mcp serve")
+			fmt.Println("Restart Pi sessions and run `pi mcp list` to verify.")
+			return nil
 		}
-		fmt.Println("Installed agit MCP server for Pi (user level).")
-		fmt.Println("For a single project instead, run: pi mcp add -l agit -- " + quoteShellArg(agitMCPCommand()) + " mcp serve")
-		fmt.Println("Restart Pi sessions and run `pi mcp list` to verify.")
-		return nil
 	}
 
-	// No pi on PATH: write the user-level mcp.json directly, in Pi's
-	// documented {"mcpServers": {...}} schema. A corrupt file is an
-	// error, never silently overwritten.
+	// Direct write: the user-level mcp.json in Pi's documented
+	// {"mcpServers": {...}} schema. A corrupt file is an error, never
+	// silently overwritten.
 	agentDir, err := piAgentDir()
 	if err != nil {
 		return err
@@ -213,6 +201,27 @@ func installPi() error {
 	}
 	fmt.Println("For a single project instead, copy the entry into that repo's .pi/mcp.json.")
 	fmt.Println("Restart Pi sessions and run `pi mcp list` to verify.")
+	return nil
+}
+
+// runPiMCPAdd registers the agit MCP server through Pi's own CLI. It
+// prints the command first, fails fast on timeout, and never blocks on
+// interactive input, so installs stay non-interactive.
+func runPiMCPAdd() error {
+	args := []string{"mcp", "add", "agit", "--", agitMCPCommand(), "mcp", "serve"}
+	fmt.Printf("Running: %s %s\n", piExecutable(), quoteShellArgs(args))
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, piExecutable(), args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = strings.NewReader("")
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("timed out after 60s")
+		}
+		return err
+	}
 	return nil
 }
 
