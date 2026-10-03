@@ -2,6 +2,7 @@ package agit
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // agitMCPCommand is the executable name MCP hosts should spawn. On
@@ -150,10 +152,22 @@ func installPi() error {
 	// Prefer Pi's own CLI: `pi mcp add` owns the config layout and the
 	// add/replace semantics, so idempotency comes for free.
 	if _, err := exec.LookPath(piExecutable()); err == nil {
-		cmd := exec.Command(piExecutable(), "mcp", "add", "agit", "--", agitMCPCommand(), "mcp", "serve")
+		args := []string{"mcp", "add", "agit", "--", agitMCPCommand(), "mcp", "serve"}
+		fmt.Printf("Running: %s %s\n", piExecutable(), strings.Join(args, " "))
+		// Bound the subprocess: a hung or prompting `pi mcp add` must
+		// fail fast with a clear error instead of stalling the install
+		// with no output. Stdin is closed so it can never block on
+		// interactive input; installs must stay non-interactive.
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, piExecutable(), args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		cmd.Stdin = strings.NewReader("")
 		if err := cmd.Run(); err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("pi mcp add timed out after 60s (it may be waiting for input); run `pi mcp add agit -- %s mcp serve` yourself", agitMCPCommand())
+			}
 			return fmt.Errorf("pi mcp add failed: %w", err)
 		}
 		fmt.Println("Installed agit MCP server for Pi (user level).")
