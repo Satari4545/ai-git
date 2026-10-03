@@ -229,13 +229,35 @@ func TestMCPInstallTargetCaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestAgitMCPCommand(t *testing.T) {
-	want := "agit"
-	if runtime.GOOS == "windows" {
-		want = "agit.cmd"
+func TestQuoteShellArg(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"agit", "agit"},
+		{`C:\Tools\agit\agit.exe`, `C:\Tools\agit\agit.exe`},
+		{`C:\Users\Jane Doe\agit.exe`, `"C:\Users\Jane Doe\agit.exe"`},
 	}
-	if got := agitMCPCommand(); got != want {
-		t.Errorf("agitMCPCommand() = %q, want %q", got, want)
+	for _, c := range cases {
+		if got := quoteShellArg(c.in); got != c.want {
+			t.Errorf("quoteShellArg(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+	if got := quoteShellArgs([]string{"mcp", "add", `C:\a b\c.exe`}); got != `mcp add "C:\a b\c.exe"` {
+		t.Errorf("quoteShellArgs = %q", got)
+	}
+}
+
+func TestAgitMCPCommand(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		got := agitMCPCommand()
+		if !filepath.IsAbs(got) {
+			t.Errorf("agitMCPCommand() = %q, want an absolute path on Windows", got)
+		}
+		if strings.ToLower(filepath.Ext(got)) != ".exe" {
+			t.Errorf("agitMCPCommand() = %q, want a .exe path on Windows", got)
+		}
+		return
+	}
+	if got := agitMCPCommand(); got != "agit" {
+		t.Errorf("agitMCPCommand() = %q, want %q", got, "agit")
 	}
 }
 
