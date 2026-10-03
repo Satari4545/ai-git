@@ -68,18 +68,13 @@ func ensureRemoteNotesRefspec(name string) error {
 
 func printQuickstart() {
 	fmt.Println()
-	fmt.Println("agit is ready. 5-minute handoff loop:")
+	fmt.Println("agit is ready.")
 	fmt.Println()
-	fmt.Println("  1. Connect your agent:  " + mcpInstallSuggestion())
-	fmt.Println("  2. Agent records work:  via the record_context MCP tool")
-	fmt.Println("  3. Commit with context: agit commit -m \"...\"")
-	fmt.Println("  4. Share it:            agit push")
+	fmt.Println("  Connect your agent:  " + mcpInstallSuggestion())
+	fmt.Println("  Commit with context: agit commit -m \"...\"")
+	fmt.Println("  Share it:            agit push")
 	fmt.Println()
-	fmt.Println("Continue in a new session or machine:")
-	fmt.Println()
-	fmt.Println("  5. Fetch the context:   agit fetch   (or: agit pull)")
-	fmt.Println("  6. Restore it:          agit checkout <branch>")
-	fmt.Println("  7. Agent reads it:      via the get_context MCP tool")
+	fmt.Println("Resume on a new session or machine: agit fetch && agit checkout <branch>")
 	fmt.Println()
 	fmt.Println("Run `agit --help` for all commands.")
 }
