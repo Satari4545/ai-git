@@ -229,6 +229,22 @@ func TestMCPInstallTargetCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestQuoteShellArg(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"agit", "agit"},
+		{`C:\Tools\agit\agit.exe`, `C:\Tools\agit\agit.exe`},
+		{`C:\Users\Jane Doe\agit.exe`, `"C:\Users\Jane Doe\agit.exe"`},
+	}
+	for _, c := range cases {
+		if got := quoteShellArg(c.in); got != c.want {
+			t.Errorf("quoteShellArg(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+	if got := quoteShellArgs([]string{"mcp", "add", `C:\a b\c.exe`}); got != `mcp add "C:\a b\c.exe"` {
+		t.Errorf("quoteShellArgs = %q", got)
+	}
+}
+
 func TestAgitMCPCommand(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		got := agitMCPCommand()

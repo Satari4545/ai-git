@@ -13,6 +13,24 @@ import (
 	"time"
 )
 
+// quoteShellArg wraps s in double quotes when it contains whitespace, so
+// printed copy-paste commands survive Windows paths like
+// C:\Users\Jane Doe\....
+func quoteShellArg(s string) string {
+	if strings.ContainsAny(s, " \t") {
+		return `"` + s + `"`
+	}
+	return s
+}
+
+func quoteShellArgs(args []string) string {
+	quoted := make([]string, len(args))
+	for i, a := range args {
+		quoted[i] = quoteShellArg(a)
+	}
+	return strings.Join(quoted, " ")
+}
+
 // agitMCPCommand is the command MCP hosts should spawn for the agit MCP
 // server. On Windows it is the absolute path of this binary: MCP hosts
 // spawn processes directly (CreateProcess-style, no shell), so a bare
@@ -145,7 +163,7 @@ tool_timeout_sec = 30
 
 func installClaude() error {
 	fmt.Println("To install for Claude Code, run:")
-	fmt.Println("claude mcp add --transport stdio --scope user agit -- " + agitMCPCommand() + " mcp serve")
+	fmt.Println("claude mcp add --transport stdio --scope user agit -- " + quoteShellArg(agitMCPCommand()) + " mcp serve")
 	return nil
 }
 
@@ -158,7 +176,7 @@ func installPi() error {
 	// add/replace semantics, so idempotency comes for free.
 	if _, err := exec.LookPath(piExecutable()); err == nil {
 		args := []string{"mcp", "add", "agit", "--", agitMCPCommand(), "mcp", "serve"}
-		fmt.Printf("Running: %s %s\n", piExecutable(), strings.Join(args, " "))
+		fmt.Printf("Running: %s %s\n", piExecutable(), quoteShellArgs(args))
 		// Bound the subprocess: a hung or prompting `pi mcp add` must
 		// fail fast with a clear error instead of stalling the install
 		// with no output. Stdin is closed so it can never block on
@@ -171,12 +189,12 @@ func installPi() error {
 		cmd.Stdin = strings.NewReader("")
 		if err := cmd.Run(); err != nil {
 			if ctx.Err() == context.DeadlineExceeded {
-				return fmt.Errorf("pi mcp add timed out after 60s (it may be waiting for input); run `pi mcp add agit -- %s mcp serve` yourself", agitMCPCommand())
+				return fmt.Errorf("pi mcp add timed out after 60s (it may be waiting for input); run `pi mcp add agit -- %s mcp serve` yourself", quoteShellArg(agitMCPCommand()))
 			}
 			return fmt.Errorf("pi mcp add failed: %w", err)
 		}
 		fmt.Println("Installed agit MCP server for Pi (user level).")
-		fmt.Println("For a single project instead, run: pi mcp add -l agit -- " + agitMCPCommand() + " mcp serve")
+		fmt.Println("For a single project instead, run: pi mcp add -l agit -- " + quoteShellArg(agitMCPCommand()) + " mcp serve")
 		fmt.Println("Restart Pi sessions and run `pi mcp list` to verify.")
 		return nil
 	}
