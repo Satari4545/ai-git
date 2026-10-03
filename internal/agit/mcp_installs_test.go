@@ -230,12 +230,18 @@ func TestMCPInstallTargetCaseInsensitive(t *testing.T) {
 }
 
 func TestAgitMCPCommand(t *testing.T) {
-	want := "agit"
 	if runtime.GOOS == "windows" {
-		want = "agit.cmd"
+		got := agitMCPCommand()
+		if !filepath.IsAbs(got) {
+			t.Errorf("agitMCPCommand() = %q, want an absolute path on Windows", got)
+		}
+		if strings.ToLower(filepath.Ext(got)) != ".exe" {
+			t.Errorf("agitMCPCommand() = %q, want a .exe path on Windows", got)
+		}
+		return
 	}
-	if got := agitMCPCommand(); got != want {
-		t.Errorf("agitMCPCommand() = %q, want %q", got, want)
+	if got := agitMCPCommand(); got != "agit" {
+		t.Errorf("agitMCPCommand() = %q, want %q", got, "agit")
 	}
 }
 

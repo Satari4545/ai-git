@@ -13,13 +13,18 @@ import (
 	"time"
 )
 
-// agitMCPCommand is the executable name MCP hosts should spawn. On
-// Windows the npm-installed binary is agit.cmd, and host process
-// spawners (CreateProcess-based, no shell) do not resolve extensionless
-// names through PATHEXT the way a shell would.
+// agitMCPCommand is the command MCP hosts should spawn for the agit MCP
+// server. On Windows it is the absolute path of this binary: MCP hosts
+// spawn processes directly (CreateProcess-style, no shell), so a bare
+// "agit" never resolves through PATHEXT and "agit.cmd" only exists for
+// npm installs. The absolute .exe path is correct for every install
+// method: direct binary, npm (which runs vendor/agit.exe), and QA builds.
 func agitMCPCommand() string {
 	if runtime.GOOS == "windows" {
-		return "agit.cmd"
+		if exe, err := os.Executable(); err == nil {
+			return exe
+		}
+		return "agit.exe"
 	}
 	return "agit"
 }
