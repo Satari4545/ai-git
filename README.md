@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Satari4545/ai-git/actions/workflows/ci.yml/badge.svg)](https://github.com/Satari4545/ai-git/actions/workflows/ci.yml)
 
-ai-git is a closed-source CLI that records AI coding-agent context alongside commits.
+ai-git is an open-source CLI that records AI coding-agent context alongside commits. It is dual-licensed under the GNU Affero General Public License v3.0 (see [LICENSE](LICENSE)) and a commercial license (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
 
 The intended flow is:
 
@@ -26,7 +26,7 @@ ai-git is not a GCC clone. GCC is agent memory infrastructure; ai-git is a produ
 
 ## Install
 
-ai-git is intended to be installed as a public CLI through npm, Homebrew, or direct binary downloads. The source repository can stay private while public release artifacts are hosted separately.
+ai-git is installed as a public CLI through npm, Homebrew, or direct binary downloads. Public release artifacts are hosted in the public binary repo.
 
 Install with npm:
 
@@ -392,8 +392,13 @@ brew install agit
 
 Git commit hashes are immutable. ai-git stores the full context as a Git note attached to the commit hash. When a commit message is available, ai-git also embeds the context ID in the commit message so the commit hash commits to that context ID.
 
-## Source Availability
+## License
 
-ai-git's source code is private. The npm package installs the CLI binary but does not include the source code.
+ai-git is dual-licensed under the GNU Affero General Public License v3.0
+(see [LICENSE](LICENSE)) and a commercial license (see
+[COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)). Use it for free under the
+AGPL-3.0, or buy a commercial license if you want to use it without the
+AGPL-3.0 obligations (for example, inside proprietary software or a hosted
+service without disclosing your source).
 
 Copyright (c) 2026 Satari4545. All rights reserved.

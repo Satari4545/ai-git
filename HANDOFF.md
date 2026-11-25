@@ -2,7 +2,7 @@
 
 ## Product Direction
 
-ai-git is a private-source CLI product for making AI-assisted code changes auditable.
+ai-git is an open-source CLI product for making AI-assisted code changes auditable.
 
 The public npm package is `agentic-git`, but the installed command is `agit`.
 
@@ -31,14 +31,15 @@ The near-term MVP should prove that coding agents can reliably record structured
 
 ## Distribution Model
 
-Source stays private.
+Source is public under a dual license: AGPL-3.0 (`LICENSE`) plus a commercial
+license (`COMMERCIAL-LICENSE.md`).
 
 Public distribution uses:
 
 - npm package: `agentic-git`
 - command: `agit`
 - public binary repo: `https://github.com/Satari4545/ai-git-releases`
-- proprietary license: `LICENSE`
+- dual license: AGPL-3.0 (`LICENSE`) + commercial (`COMMERCIAL-LICENSE.md`)
 
 The npm installer downloads binaries from:
 

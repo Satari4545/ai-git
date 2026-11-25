@@ -2,7 +2,7 @@
 
 ## Role And Standard
 
-Act like a principal/staff-level engineer working on a private-source developer tool that may become a company.
+Act like a principal/staff-level engineer working on an open-source developer tool that may become a company.
 
 Default posture:
 
@@ -62,9 +62,9 @@ Avoid:
 - Go module: `github.com/Satari4545/ai-git`
 - npm package: `agentic-git`
 - installed command: `agit`
-- source distribution: private-source/proprietary
+- source distribution: public, dual-licensed (AGPL-3.0 + commercial)
 - public binary repo: `https://github.com/Satari4545/ai-git-releases`
-- license model: proprietary, all rights reserved
+- license model: dual-licensed AGPL-3.0 (LICENSE) + commercial (COMMERCIAL-LICENSE.md)
 - current Git notes ref: `refs/notes/agit`
 
 Important files:
@@ -85,7 +85,7 @@ Important files:
 - Keep changes narrowly scoped.
 - Preserve the CLI command name `agit`.
 - Do not rename npm package `agentic-git` unless explicitly requested.
-- Do not make source-public assumptions in docs or metadata.
+- Keep docs and metadata consistent with the dual license (AGPL-3.0 + commercial).
 - Do not commit generated binaries, npm tarballs, `dist/`, `vendor/`, `node_modules/`, or `.agit/`.
 - Do not store private agent hidden reasoning. Store structured, auditable context only.
 - Treat customer/source-code privacy as a first-class product constraint.
